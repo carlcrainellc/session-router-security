@@ -1,18 +1,21 @@
 # Windows client
 
-This repository starts from Session Foundation `session-router` **dev**
-(imported as branch `main` here). It carries Windows client hardening.
+This repository is a **Windows-oriented fork** of Session Foundation
+`session-router`, imported from upstream branch `dev` as this repository’s
+`main`. It hardens client defaults, packaging, and docs for people who want a
+usable Windows build without upstream project internals.
 
-**Do not open PRs from this tip into session-foundation** until an explicit public
-flip is named.
+This is a fork. Contribution or pull requests into Session Foundation are **not**
+the goal of this repository.
 
 ## Upstream pin
 
 Imported from: https://github.com/session-foundation/session-router  
-Branch imported: `dev` (Foundation has no `main`; `dev` is the default tip)  
+Branch imported: `dev` (Foundation’s default development branch; there is no
+`main` there)  
 Exact SHA: `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`
 
-## What this tip already locks (defaults)
+## What the default build already locks
 
 Plain-language summary of packaged defaults. Details follow in later sections.
 
@@ -62,8 +65,8 @@ onto the network (and as cold fallback for `local` / `chain3`).
 
 - Treat it as a **trust root**: if an attacker replaces it, they can bias who you
   first talk to.
-- Prefer copies that ship with the official artifact for this tip, or that you
-  built yourself from this repository at a known commit.
+- Prefer copies that ship with the official artifact for this repository, or that
+  you built yourself from a known commit.
 - `local` mode trusts **only** this file (no live fetch).
 - `chain3` prefers a reconciled RPC view; the signed file is cold fallback only.
 
@@ -77,14 +80,38 @@ If you turn it on:
 - You must set an `auth` secret in the config.
 - Control commands need that secret. An open, unlocked admin port is not allowed.
 
-## Network bind
+## Network bind (lesson)
 
 The client UDP/QUIC socket binds **all interfaces** (`0.0.0.0`) with an
-**ephemeral port** (port `0`). That is the normal default. Do **not** bind the
-QUIC socket to `127.0.0.1` (that would break the client).
+**ephemeral port** (port `0`). That is the normal default for peer connectivity.
 
-A **fixed** port on every address (for example `listen=:1191`) is opt-in only:
-set `allow-all-interfaces=true`. Otherwise omit `listen` and keep the ephemeral
+**Do not** bind the QUIC socket to `127.0.0.1`. That would break the client.
+Loopback is appropriate for the local API and local DNS listener — not for the
+onion UDP path.
+
+### What upstream packaging/docs left confused
+
+Two different problems got tangled together:
+
+1. **Fixed port on all interfaces** — shipping something like `listen=:1191`
+   puts a stable UDP listener on every address. That is a wider local exposure
+   than most desktop users intend, and easy to misread as “the one VPN port.”
+2. **“Just bind loopback”** — a tempting-sounding mitigation that is simply
+   wrong for QUIC. Ephemeral-port-on-`0.0.0.0` is not the same thing as
+   localhost-only. Treating them as synonyms left civilians either exposed or
+   broken depending on which bad advice they followed.
+
+### What this fork changed
+
+- Packaged config **omits** a fixed `listen=:PORT`. Default remains
+  all-interfaces + ephemeral port `0`.
+- Code **refuses** `listen=:PORT` on all interfaces unless
+  `allow-all-interfaces=true`.
+- Docs state the truth: we did **not** kill the public QUIC socket; we locked a
+  safer listen default and corrected the wording.
+
+A **fixed** port on every address remains opt-in only: set
+`allow-all-interfaces=true`. Otherwise omit `listen` and keep the ephemeral
 port.
 
 ## Clearnet DNS
@@ -109,7 +136,11 @@ exit) is **not ready for general use**.
 The packaged client keeps Exit **off** (`[exit] enable=false`) and automatic exit
 routing **off**. Do not turn these on for everyday use.
 
-Deeper Exit work lives outside this Windows client tip; here Exit stays off.
+Upstream left Exit available as a configuration surface without shipping an
+equally serious account of what still fails when it is enabled. That gap —
+defaults and docs that a civilian can walk past — is why this fork treats Exit
+as a documented hazard with the switch left off, not as a finished product
+feature.
 
 ### Exit security flaws
 
@@ -118,38 +149,62 @@ that enables Exit inherits them). A smaller set is **Windows-specific**.
 
 **Protocol / client-routing class (not Windows-only):**
 
-- Exit broker trust / injection — only an explicitly mapped exit may be treated as
-  the exit broker.
-- EXIT_CAPABLE gate — wait until the mapped exit is exit-capable before clearnet
-  via Exit.
-- Route bring-up fail-closed — no gateway / missing host pins must not partially
-  succeed.
-- Empty or bare default routes — empty ranges or bare `0.0.0.0/0` / `::/0` must
-  not silently become full tunnel without explicit acknowledgement.
-- Empty allow-all exit policy — `enable` with an empty policy must refuse, not
-  allow all.
-- API auth for privileged exit controls — map/swap/unmap need real admin auth.
-- Unmap / empty ranges — last unmap must tear routes down.
+- **Exit broker trust / injection** — only an explicitly mapped exit may be
+  treated as the exit broker; otherwise traffic can be steered toward an exit
+  the operator never chose.
+- **EXIT_CAPABLE gate** — wait until the mapped exit is exit-capable before
+  clearnet via Exit; proceeding early is a correctness and safety bug.
+- **Route bring-up fail-closed** — no gateway / missing host pins must not
+  partially succeed.
+- **Empty or bare default routes** — empty ranges or bare `0.0.0.0/0` / `::/0`
+  must not silently become full tunnel without explicit acknowledgement.
+- **Empty allow-all exit policy** — `enable` with an empty policy must refuse,
+  not allow all.
+- **API auth for privileged exit controls** — map/swap/unmap need real admin
+  auth, not an unlocked local port.
+- **Unmap / empty ranges** — last unmap must tear routes down.
 
 **Windows-specific:**
 
-- IPv6 binding scope — disable IPv6 on the Session Router TUN adapter only, never
-  a global “all adapters” disable.
-- Gateway / next-hop installation — Win32 next-hop selection and `route` errors
-  must not install a bad default via the tunnel.
+- **IPv6 binding scope** — disable or soft-fail IPv6 on the Session Router TUN
+  adapter only, never a global “all adapters” disable.
+- **Gateway / next-hop installation** — Win32 next-hop selection and `route`
+  errors must not install a bad default via the tunnel.
 
-## Honest non-fixes (what this tip does not claim)
+### What this fork fixed vs what remains
+
+**Fixed in this fork’s defaults / code / docs (Windows client path):**
+
+- Exit and auto-routing packaged **off**, with an explicit warning rather than a
+  quiet toggle.
+- Local API **off** by default; when enabled, loopback/IPC + `auth=` gate
+  privileged controls (including Exit map/unmap class).
+- Clearnet DNS and `reachable` off so a default install does not widen exposure
+  while Exit remains unfinished.
+- TUN-scoped IPv6 soft-fail and related stay-up work so Windows-specific
+  foot-guns are narrower.
+- Bind packaging/docs corrected (see bind lesson above) so Exit discussions are
+  not mixed with a separate all-interfaces listen mistake.
+
+**Not claimed fixed here (why Exit stays off):**
+
+Broker trust, EXIT_CAPABLE gating, fail-closed route bring-up, empty-policy
+refusal, unmap teardown, and the deeper Windows gateway/next-hop Exit path are
+still open product work. This repository keeps Exit disabled rather than
+shipping a half-finished clearnet story.
+
+## Honest non-fixes (what this fork does not claim)
 
 - **First hop still sees an IP.** Onion routing hides your destination from
   intermediate relays in the usual way; your network path to the first hop still
   has an address. That is a protocol fact, not a Windows bug.
 - **Elevation.** Creating/using the TUN adapter on Windows typically needs
-  appropriate privileges. This tip does not remove that OS requirement.
-- **Upstream / Foundation limits.** Behavior inherited from upstream Session
-  Router still applies; this tip hardens defaults and Windows packaging, it does
-  not rewrite the whole protocol.
-- **Exit depth.** Serious Exit hardening is tracked elsewhere. **This tip keeps
-  Exit off** rather than pretending Exit is finished.
+  appropriate privileges. This fork does not remove that OS requirement.
+- **Upstream limits.** Behavior inherited from upstream Session Router still
+  applies; this fork hardens defaults and Windows packaging, it does not rewrite
+  the whole protocol.
+- **Exit depth.** Serious Exit hardening is unfinished. **This fork keeps Exit
+  off** rather than pretending Exit is finished.
 - **System VPN / commercial VPN under Session Router** (for example running a
   system-wide VPN beneath this client) is **out of scope for now** — future work,
   not documented as a supported setup here.
@@ -161,7 +216,7 @@ that enables Exit inherits them). A smaller set is **Windows-specific**.
 - Default **off** for local admin API, clearnet DNS lookups, inbound
   “reachable”, and Exit / auto-routing.
 - Honest bind wording: ephemeral port on all interfaces; no false claim of
-  “localhost-only QUIC”.
+  “localhost-only QUIC”; fixed all-interfaces port refused without opt-in.
 - Bootstrap choices: signed-file-only (`local`) and optional multi-RPC reconcile
   (`chain3`) for operators who need them.
 - Windows stay-up hardening (drain / IPv6 soft-fail / zstd) aimed at fewer silent
@@ -191,7 +246,7 @@ publish them with session keys or auth secrets.
 
 When you care about provenance:
 
-1. **Source tip** — note the git commit SHA of this repository (for example
+1. **Source commit** — note the git commit SHA of this repository (for example
    `git rev-parse HEAD`). Prefer building or downloading an artifact that names
    that SHA.
 2. **CI artifact naming** — the `windows-source` workflow uploads

@@ -494,7 +494,7 @@ namespace srouter
                 "Enable / disable automatic route configuration.",
                 "When this is enabled and an exit is used Session Router will automatically configure the",
                 "operating system routes to route public internet traffic through the exit node.",
-                "Default is false for this client tip (Exit routing is not ready for general use)."},
+                "Default is false for this Windows client (Exit routing is not ready for general use)."},
             assignment_acceptor(enable_route_poker));
 
         conf.define_option<bool>(
@@ -932,7 +932,7 @@ namespace srouter
                 "Upstream resolver(s) to use as fallback for non-Session Router addresses.",
                 "Multiple values accepted.  Can be set to empty to disable upstream DNS resolution.",
                 "",
-                "Default for this client tip: no upstream resolvers. Non-.sesh / non-.snode names",
+                "Default for this Windows client: no upstream resolvers. Non-.sesh / non-.snode names",
                 "are refused until a safe path is configured (set upstream= explicitly if needed).",
             },
             [this](const std::string& arg) {
