@@ -489,13 +489,12 @@ namespace srouter
             "network",
             "auto-routing",
             FullClientOnly,
-            Default{true},
+            Default{false},
             Comment{
                 "Enable / disable automatic route configuration.",
                 "When this is enabled and an exit is used Session Router will automatically configure the",
                 "operating system routes to route public internet traffic through the exit node.",
-                "This is enabled by default, but can be disabled if advanced/manual exit routing",
-                "configuration is desired."},
+                "Default is false for this client tip (Exit routing is not ready for general use)."},
             assignment_acceptor(enable_route_poker));
 
         conf.define_option<bool>(

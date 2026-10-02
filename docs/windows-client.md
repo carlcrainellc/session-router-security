@@ -38,8 +38,11 @@ Two modes (no third mode in this tip):
 ## Exit routing warning
 
 Exit routing (sending your normal internet traffic out through a Session Router exit)
-is **not ready for general use**. Keep Exit off unless you are doing a controlled
-private test and know exactly what you are turning on.
+is **not ready for general use**.
+
+The packaged client keeps Exit **off** (`[exit] enable=false`) and automatic exit
+routing **off**. Do not turn these on for everyday use. Only use Exit in a private
+test if you understand the risk.
 
 ## Network bind
 
@@ -61,3 +64,15 @@ config. Session names (`.sesh` / `.snode`) still work through Session Router.
 By default this client does **not** publish itself as reachable on the network.
 
 Other people are not invited to connect in to you unless you turn `reachable` on.
+
+## Defaults summary (this tip)
+
+| Setting | Default |
+|---------|---------|
+| Bootstrap | normal (`fetch=true`); local available |
+| Local API | off |
+| Bind | no fixed `:1191` on all NICs |
+| Clearnet DNS | off (NXDOMAIN for non-.sesh/.snode) |
+| Reachable | false |
+| Exit | off |
+| Auto exit routing | off |

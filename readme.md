@@ -8,6 +8,13 @@
 
 Do **not** open PRs from this repository into Session Foundation.
 
+## Warning: Exit routing
+
+**Exit routing is not ready for general use.**
+
+The packaged client keeps Exit **off**. Do not turn Exit on for everyday internet
+browsing. Only use Exit in a private test if you understand the risk.
+
 ---
 
 # Session Router
