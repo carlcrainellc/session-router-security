@@ -26,6 +26,10 @@ miss.
   — see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md#tunnel-dns-required-for-sesh)
   and packaging `tunnel-dns-preflight.ps1`
 
+Maintained by Carl Craine and OGMax.
+
+Donate (Ethereum): `0x2d81bfecee48de4cf49fddcc9f279970335fe298`
+
 ## What the default build already locks
 
 | Lock | Default |
