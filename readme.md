@@ -30,6 +30,8 @@ Maintained by Carl Craine and OGMax.
 
 Donate (Ethereum): `0x2d81bfecee48de4cf49fddcc9f279970335fe298`
 
+Donate (SESH token on Arbitrum / EVM): `0x8bc20aBA70685634269d1803E7aCC752d985aa44`
+
 ## What the default build already locks
 
 | Lock | Default |
