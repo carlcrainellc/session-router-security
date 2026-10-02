@@ -1210,6 +1210,41 @@ namespace srouter
                 if (not exists(files.back()))
                     throw std::invalid_argument{"file does not exist: {}"_format(files.back())};
             });
+
+        conf.define_option<bool>(
+            "bootstrap",
+            "fetch",
+            Default{true},
+            assignment_acceptor(fetch),
+            Comment{
+                "When true (default / omit): connect to bootstrap nodes and fetch a live RC list",
+                "(bootstrap_connect + bfetch_rcs) — normal mode.",
+                "When false: load signed RCs from add-node / bootstrap.signed only; no",
+                "bootstrap_connect and no live seed fetch. Missing bootstrap file with",
+                "fetch=false refuses startup. Same as mode=local.",
+            });
+
+        conf.define_option<std::string>(
+            "bootstrap",
+            "mode",
+            Comment{
+                "Bootstrap mode alias: normal (live fetch, default) or local (signed file only,",
+                "no live fetch; refuses start if the signed file is missing). Same effect as",
+                "fetch=true / fetch=false. Prefer one of mode= or fetch=; if both are set, the",
+                "last one processed wins.",
+            },
+            [this](std::string arg) {
+                for (char& c : arg)
+                    if (c >= 'A' && c <= 'Z')
+                        c = static_cast<char>(c - 'A' + 'a');
+                if (arg == "normal")
+                    fetch = true;
+                else if (arg == "local")
+                    fetch = false;
+                else
+                    throw std::invalid_argument{
+                        "[bootstrap] mode must be 'normal' or 'local' (got '{}')"_format(arg)};
+            });
     }
 
     void LoggingConfig::define_config_options(ConfigDefinition& conf)

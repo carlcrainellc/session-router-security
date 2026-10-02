@@ -325,7 +325,8 @@ namespace srouter
             return false;
         });
 
-        if (num_rcs() < MIN_ACTIVE_RCS and not _bootstraps.empty() and not _bootstrap_running)
+        if (_router.config().bootstrap.fetch and num_rcs() < MIN_ACTIVE_RCS and not _bootstraps.empty()
+            and not _bootstrap_running)
         {
             log::warning(logcat, "Purging expired relays resulted in too few RCs; falling back to bootstrap mode");
             _bootstrap_fails = 0;
@@ -709,12 +710,20 @@ namespace srouter
 
         _purge_timer = _router._jq->add_timer(PURGE_INTERVAL, [this] { purge_rcs(); });
 
-        auto need_bootstrap = num_rcs() < MIN_ACTIVE_RCS;
+        const bool allow_fetch = _router.config().bootstrap.fetch;
+        auto need_bootstrap = allow_fetch and num_rcs() < MIN_ACTIVE_RCS;
         if (not has_bootstraps())
         {
             log::warning(logcat, "Only {} known RCs, but no bootstrap nodes are configured", num_rcs());
             need_bootstrap = false;
         }
+        if (not allow_fetch)
+            log::info(
+                logcat,
+                "bootstrap fetch=false (mode=local): using local signed RC list only ({} RCs, {} bootstraps); "
+                "skipping bootstrap_connect / bfetch_rcs",
+                num_rcs(),
+                num_bootstraps());
 
         if (not _router.is_service_node)
         {
@@ -746,6 +755,9 @@ namespace srouter
         }
 
         if (num_rcs() >= MIN_ACTIVE_RCS)
+            return;
+
+        if (not _router.config().bootstrap.fetch)
             return;
 
         auto cooldown = std::min(BOOTSTRAP_COOLDOWN * (success ? 1 : _bootstrap_fails), BOOTSTRAP_COOLDOWN_MAX);
@@ -825,6 +837,8 @@ namespace srouter
     void NodeDB::load_bootstraps()
     {
         const auto def = _router.config().router.data_dir / default_bootstrap;
+        const bool allow_fetch = _router.config().bootstrap.fetch;
+
         for (const auto& f : _router.config().bootstrap.files)
         {
             log::debug(logcat, "Loading BootstrapRC from file {}", f);
@@ -840,9 +854,14 @@ namespace srouter
             }
             catch (const std::exception& e)
             {
+                if (not allow_fetch)
+                    throw std::runtime_error{"[bootstrap] fetch=false: failed loading {}: {}"_format(def, e.what())};
                 log::warning(logcat, "Failed loading from default bootstrap file {}: {}.  Skipping it.", def, e.what());
             }
         }
+
+        if (not allow_fetch and _bootstraps.empty())
+            throw std::runtime_error{"[bootstrap] fetch=false (mode=local) requires add-node/bootstrap.signed"};
 
         auto obsolete = std::erase_if(_bootstraps, [](const auto& bs) { return bs.is_obsolete(); });
         if (obsolete > 0)
@@ -854,6 +873,9 @@ namespace srouter
 
         if (_bootstraps.empty() && (removed > 0 || _router.config().bootstrap.files.empty()))
         {
+            if (not allow_fetch)
+                throw std::runtime_error{"[bootstrap] fetch=false (mode=local) requires add-node/bootstrap.signed"};
+
             log::debug(logcat, "Bootstrap list is empty; loading built-in fallbacks");
             for (const auto& [n, rc_blob] : bootstrap_fallbacks)
             {
@@ -882,6 +904,28 @@ namespace srouter
         }
 
         std::shuffle(_bootstraps.begin(), _bootstraps.end(), srouter::csrng);
+
+        // fetch=false / mode=local: treat the signed file list as the local RC pool.
+        if (not allow_fetch)
+        {
+            int seeded = 0;
+            for (const auto& rc : _bootstraps)
+            {
+                const auto& rid = rc.router_id();
+                if (not _router.is_service_node)
+                    known_rids.insert(rid);
+                auto [it, inserted] = known_rcs.try_emplace(rid, rc);
+                if (inserted)
+                    ++seeded;
+                else if (rc.newer_than(it->second))
+                    it->second = rc;
+            }
+            log::info(
+                logcat,
+                "bootstrap fetch=false: seeded {} local signed RCs from file (pool now {})",
+                seeded,
+                known_rcs.size());
+        }
 
         log::debug(logcat, "We have {} Bootstrap router(s)!", _bootstraps.size());
     }

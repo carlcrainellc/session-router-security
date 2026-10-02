@@ -263,6 +263,8 @@ namespace srouter
     struct BootstrapConfig : ConfigBase
     {
         std::vector<std::filesystem::path> files;
+        // true (mode=normal / omit): live seed fetch. false (mode=local): signed file only.
+        bool fetch = true;
 
         void define_config_options(ConfigDefinition& conf) override;
     };
