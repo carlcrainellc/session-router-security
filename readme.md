@@ -32,6 +32,9 @@ Donate (Ethereum): `0x2d81bfecee48de4cf49fddcc9f279970335fe298`
 
 Donate (SESH token on Arbitrum / EVM): `0x8bc20aBA70685634269d1803E7aCC752d985aa44`
 
+**Latest Windows release:** [v0.1.1-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.1-windows-client)
+— tip `06001544c39b032c291242eb91f12f9f80b66c7b`, `session-router.exe` SHA256 `f91736365d8ee91b84a80aec9fa5d70db8fd6e6b0eeca14099250612b24dc86f`. Exit stays off in the packaged defaults.
+
 ## Safer defaults in this security fork
 
 These are the packaged defaults for **this** repository
@@ -157,6 +160,9 @@ One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-page
 
 ## Supply chain & authenticity
 
+- Latest release: [v0.1.1-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.1-windows-client)
+  (tip `06001544c39b032c291242eb91f12f9f80b66c7b`; exe SHA256
+  `f91736365d8ee91b84a80aec9fa5d70db8fd6e6b0eeca14099250612b24dc86f`).
 - Release zip: statically linked `session-router.exe` + official `wintun.dll`
   (and ini / bootstrap / docs). **Only Wintun is required** beside the exe;
   MinGW C++/runtime DLLs are not needed for that package.
