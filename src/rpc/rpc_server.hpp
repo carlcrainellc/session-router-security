@@ -70,6 +70,9 @@ namespace srouter
           public:
             explicit RPCServer(oxenmq::OxenMQ&, Router&);
 
+            /// Returns true if request may proceed; otherwise writes an error reply and returns false.
+            bool require_api_auth(oxenmq::Message& msg, std::string_view command) const;
+
             void HandleLogsSubRequest(oxenmq::Message& m);
 
             void AddCategories();

@@ -248,6 +248,8 @@ namespace srouter
     {
         bool enable_rpc_server = false;
         std::vector<std::string> rpc_bind_addrs;
+        // Shared secret required when enable_rpc_server is true. Privileged RPC must present it.
+        std::string auth;
 
         void define_config_options(ConfigDefinition& conf) override;
     };

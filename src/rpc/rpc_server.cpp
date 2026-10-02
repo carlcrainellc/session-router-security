@@ -98,16 +98,60 @@ namespace srouter::rpc
     const std::unordered_map<std::string, rpc_callback> rpc_request_map =
         register_rpc_requests(rpc::rpc_request_types{});
 
+    bool RPCServer::require_api_auth(oxenmq::Message& msg, std::string_view command) const
+    {
+        // Privileged ops must not rely on AuthLevel::none alone. Require [api] auth= match.
+        const auto& need = _router.config().api.auth;
+        if (need.empty())
+        {
+            // Should be unreachable when API is correctly configured; fail closed.
+            msg.send_reply(nlohmann::json{{"error", "API auth is not configured; refusing '{}'"_format(command)}}.dump());
+            return false;
+        }
+
+        std::string got;
+        try
+        {
+            if (not msg.data.empty() and not msg.data[0].empty() and msg.data[0].front() != 'd')
+            {
+                auto j = nlohmann::json::parse(msg.data[0]);
+                if (j.contains("auth") and j["auth"].is_string())
+                    got = j["auth"].get<std::string>();
+            }
+        }
+        catch (...)
+        {
+            // parse errors handled by make_invoke; treat as missing auth here
+        }
+
+        if (got != need)
+        {
+            msg.send_reply(nlohmann::json{{"error", "Unauthorized: '{}' requires matching [api] auth"_format(command)}}.dump());
+            return false;
+        }
+        return true;
+    }
+
     void RPCServer::AddCategories()
     {
+        // Category remains AuthLevel::none for oxenmq plain loopback sockets, but privileged
+        // commands below also require the [api] auth= credential (AuthLevel::none alone is
+        // forbidden for privileged ops).
         _omq.add_category("llarp", oxenmq::AuthLevel::none).add_request_command("logs", [this](oxenmq::Message& msg) {
+            if (not require_api_auth(msg, "logs"))
+                return;
             HandleLogsSubRequest(msg);
         });
 
         for (auto& req : rpc_request_map)
         {
             _omq.add_request_command(
-                "llarp", req.first, [name = std::string_view{req.first}, &call = req.second, this](oxenmq::Message& m) {
+                "llarp",
+                req.first,
+                [name = std::string_view{req.first}, &call = req.second, this](oxenmq::Message& m) {
+                    // version is still gated by auth when API is on (fail closed).
+                    if (not require_api_auth(m, name))
+                        return;
                     call.invoke(m, *this);
                 });
         }

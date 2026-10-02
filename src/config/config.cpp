@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <stdexcept>
+#include <string_view>
 
 namespace srouter
 {
@@ -1106,11 +1107,12 @@ namespace srouter
             "api",
             "enabled",
             NotEmbedded,
-            Default{conf.type == config::Type::FullClient},
+            Default{false},
             assignment_acceptor(enable_rpc_server),
             Comment{
-                "Determines whether or not the OMQ JSON API is enabled. By default this is enabled for clients, "
-                "disabled for relays",
+                "Determines whether or not the OMQ JSON API is enabled. Default is off for clients and",
+                "relays. If enabled: bind must be loopback (or ipc), and [api] auth= must be set. Privileged",
+                "commands require that credential; AuthLevel::none alone is not enough for privileged ops.",
             });
 
         conf.define_option<std::string>(
@@ -1133,7 +1135,17 @@ namespace srouter
             },
             Comment{
                 "IP addresses and ports to bind to.",
-                "Recommend localhost-only for security purposes.",
+                "When the API is enabled, only loopback TCP (127.0.0.1 / ::1) or ipc:// is allowed.",
+            });
+
+        conf.define_option<std::string>(
+            "api",
+            "auth",
+            NotEmbedded,
+            assignment_acceptor(auth),
+            Comment{
+                "Shared secret required when [api] enabled=true. Privileged RPC requests must include",
+                "matching auth (JSON field \"auth\"). Leave empty only when the API is off.",
             });
 
         // TODO: this was from pre-refactor:
@@ -1609,6 +1621,40 @@ namespace srouter
 #endif
     }
 
+
+    namespace
+    {
+        bool api_bind_is_local(std::string_view addr)
+        {
+            if (addr.starts_with("ipc://"))
+                return true;
+            std::string_view rest = addr;
+            if (rest.starts_with("tcp://"))
+                rest.remove_prefix(6);
+            // Accept loopback only
+            return rest.starts_with("127.0.0.1:") or rest.starts_with("127.0.0.1/")
+                or rest == "127.0.0.1" or rest.starts_with("[::1]:") or rest.starts_with("[::1]/
+                or rest == "::1";
+        }
+
+        void validate_api_hardening(const ApiConfig& api, bool enabled_flag)
+        {
+            if (not enabled_flag)
+                return;
+            if (api.auth.empty())
+                throw std::invalid_argument{
+                    "[api] enabled=true requires a non-empty [api] auth= credential"};
+            if (api.rpc_bind_addrs.empty())
+                throw std::invalid_argument{"[api] enabled=true requires at least one [api] bind="};
+            for (const auto& a : api.rpc_bind_addrs)
+            {
+                if (not api_bind_is_local(a))
+                    throw std::invalid_argument{
+                        "[api] bind must be loopback or ipc when enabled (refusing '{}')"_format(a)};
+            }
+        }
+    }  // namespace
+
     Config::Config(config::Type type, std::filesystem::path conf_file)
         : Config{type, util::file_to_string(conf_file), conf_file.parent_path(), util::path_as_str(conf_file)}
     {}
@@ -1629,6 +1675,8 @@ namespace srouter
         });
 
         defs.process();
+
+        validate_api_hardening(api, api.enable_rpc_server);
     }
 
 }  // namespace srouter

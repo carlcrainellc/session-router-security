@@ -13,6 +13,17 @@ Exact SHA: `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`
 
 ## What this client does by default (plain language)
 
+
+## Local control API
+
+The local JSON control API is **off by default**.
+
+If you turn it on:
+
+- It may only listen on this computer (loopback) or a local ipc socket.
+- You must set an `auth` secret in the config.
+- Control commands need that secret. An open, unlocked admin port is not allowed.
+
 ## Bootstrap modes
 
 Two modes (no third mode in this tip):
