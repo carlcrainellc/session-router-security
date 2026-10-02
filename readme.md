@@ -6,21 +6,25 @@ from the upstream `dev` branch at SHA
 `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`.
 
 Its identity is **security defaults and Exit honesty**. Windows is the primary
-build and run target in this guide. The repository exists so a stranger can
-download, build, or run that client with safer defaults and clearer docs —
-without needing the upstream project’s internal context. This is a fork; opening pull requests against Session Foundation is
+build and run target in this guide. A stranger should be able to clone or
+download, run the Windows client, and understand the risks without lab or
+upstream-project context. Opening pull requests against Session Foundation is
 **not** the goal of this repository.
 
 Many of the serious issues documented here (especially Exit routing and related
 client-routing behavior) are **not limited to Windows**. They are protocol /
 client defaults that apply on other platforms too. Continuing to run the
-official Session Foundation build does not remove those risks; this fork changes
-defaults and documentation so they are harder to miss.
-
+official Session Foundation build does not remove those risks if Exit is
+enabled; this fork changes defaults and documentation so they are harder to
+miss.
 
 - **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
-- **How to run (runtimes):** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
-- **Tunnel DNS (required for `.sesh`):** after start, `netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no` — see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md#tunnel-dns-required-for-sesh) and packaging `tunnel-dns-preflight.ps1`
+- **How to run:** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
+- **Exit integrity notes:** [docs/exit-integrity.md](docs/exit-integrity.md)
+- **Tunnel DNS (required for `.sesh`):** after start,
+  `netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no`
+  — see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md#tunnel-dns-required-for-sesh)
+  and packaging `tunnel-dns-preflight.ps1`
 
 ## What the default build already locks
 
@@ -40,49 +44,46 @@ defaults and documentation so they are harder to miss.
 is **not** the double-click default. See the default-vs-developer table in
 [docs/windows-client.md](docs/windows-client.md).
 
-## Warning: Exit routing
+## Exit routing — status in this fork
 
-**Exit routing is not ready for general use.**
+**Exit is not a finished product here.** Packaged clients keep
+`[exit] enable=false` and `auto-routing=false`. Code fixes below do **not** turn
+Exit on. Do not enable Exit for everyday browsing.
 
-Exit is the feature that sends ordinary internet traffic out through a Session
-Router exit. Upstream shipped client packaging and docs that left Exit reachable
-as a config toggle without an equally serious treatment of what still fails when
-it is turned on. This fork keeps Exit **off** in the packaged client
-(`[exit] enable=false`, `auto-routing=false`) and documents why.
+Upstream left Exit reachable as a config toggle without an equally serious
+treatment of integrity failures that appear when it is turned on: return traffic
+accepted from the wrong peer, clearnet via Exit before the mapped session is
+ready, routes brought up without a real gateway, empty or bare
+`0.0.0.0/0` maps that silently become full-tunnel, privileged map/unmap without
+real credentials, and last-unmap leaving routes installed. This fork fixes those
+in client code and keeps the switch off until Exit is actually ready as a
+product.
 
-Do **not** turn Exit on for everyday browsing.
+### Status table
 
-### Exit / client-routing flaw status
+| Flaw | Scope | Status |
+|------|-------|--------|
+| Broker trust / injection (only mapped Exit injects return traffic) | Protocol / client-routing | **Fixed (code)** |
+| Clearnet via Exit before `EXIT_CAPABLE` | Protocol / client-routing | **Fixed (code)** |
+| Fail-closed route bring-up (missing gateway / host pins) | Protocol / client-routing | **Fixed (code)** |
+| Empty ranges / bare `0.0.0.0/0` / `::/0` without `full_tunnel` | Protocol / client-routing | **Fixed (code)** |
+| `[exit] enable` + empty policy behaves as allow-all | Protocol / client-routing | **Fixed (code)** |
+| Last unmap leaves routes up | Protocol / client-routing | **Fixed (code)** |
+| Map / swap / unmap without real API credentials | Local API / Exit controls | **Fixed (code)** — API off by default; if enabled, matching `[api] auth=` required |
+| IPv6 disable / soft-fail hits all adapters | Windows-specific | **Fixed (code)** — TUN-scoped |
+| Bad Win32 default next-hop via tunnel | Windows-specific + Exit path | **Fixed (code)** |
+| OMQ vs packet-path data race on live Exit ranges | Protocol / client-routing | **Still open** |
+| DNS on-link leak (`set_dns_mode` not wired) | Protocol / client-routing | **Still open** |
 
-**Branch note:** this branch (`private/exit-integrity`) is the **Exit integrity
-review** pack. It ports client Exit integrity fixes while keeping Exit **off** in
-the packaged client until review says otherwise. See
-[docs/exit-integrity-review.md](docs/exit-integrity-review.md).
+Packaged Exit stays **off by default**. That is deliberate packaging, not a claim
+that Exit-on is finished. Rows marked **Fixed (code)** are corrected in this
+branch; enabling Exit remains an operator choice with remaining open items above.
 
-**How to read the table:** “Fixed in this fork (code)” means the underlying
-handler / route / RPC logic is corrected on this branch. Exit still stays **off
-by default** for review — turning Exit on is an operator choice, not the
-shipped default. Rows that remain mitigated-only (no code fix yet) say so.
+Cross-platform: these Exit / client-routing risks are not Windows-only. Official
+Foundation builds can still carry them if Exit is enabled.
 
-| Flaw | Scope | Status in this fork |
-|------|-------|---------------------|
-| Broker trust / injection | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| EXIT_CAPABLE gate | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| Last unmap leaves routes | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
-| Map / swap / unmap without real API credentials | Local API / Exit controls | Fixed in this fork (code/docs) when API used (API off by default; if on need `auth=`) |
-| IPv6 disable / soft-fail hits all adapters | Windows-specific | Fixed in this fork (code/docs) — TUN-scoped |
-| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Fixed in this fork (code) — Exit remains off by default for review |
-
-**Defaults around Exit (not an Exit-on product claim):** packaged client keeps
-`[exit] enable=false` and `auto-routing=false`. Clearnet DNS (`upstream=`) and
-`reachable` stay **off** by default so a normal install does not widen exposure
-beside the Exit switch. Code fixes above do **not** turn Exit on.
-
-Full write-up: [docs/windows-client.md](docs/windows-client.md). Review notes:
-[docs/exit-integrity-review.md](docs/exit-integrity-review.md).
+Details: [docs/exit-integrity.md](docs/exit-integrity.md) and
+[docs/windows-client.md](docs/windows-client.md).
 
 ## Bind lesson: all-interfaces ephemeral vs “bind loopback”
 
@@ -132,12 +133,13 @@ default and documents the remaining risks in the open.
 
 **Improves:** safer defaults (API / DNS / reachable / Exit off), honest bind
 docs and fixed-port refusal, optional `local` / `chain3` bootstrap for
-operators, Windows stay-up fixes, and a release package that ships only official Wintun
-as a third-party DLL (exe is statically linked for MinGW runtimes).
+operators, Windows stay-up fixes, client Exit integrity fixes listed above, and
+a release package that ships only official Wintun as a third-party DLL (exe is
+statically linked for MinGW runtimes).
 
 **Does not protect against:** a replaced `bootstrap.signed`, first-hop path
 visibility, OS/malware compromise, unofficial DLLs beside the exe, or “full
-clearnet anonymity via Exit” (Exit is off and has known flaws).
+clearnet anonymity via Exit” (Exit is off; open items remain if turned on).
 
 One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-pager).
 
@@ -148,7 +150,7 @@ One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-page
   MinGW C++/runtime DLLs are not needed for that package.
 - Wintun: https://www.wintun.net/ — amd64 `wintun.dll`, expected size **427552** bytes
   (also listed with hashes in the zip’s DEPENDENCIES.txt).
-- Match the release tip SHA / CI artifact name to the git commit; keep a local
+- Match the release commit SHA / CI artifact name to the git commit; keep a local
   hash of the exe with that SHA. Treat `bootstrap.signed` as a trust root.
   Details: [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md).
 

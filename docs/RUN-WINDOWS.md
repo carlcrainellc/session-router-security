@@ -85,13 +85,12 @@ See [windows-client.md](windows-client.md). Defaults use **normal** mode. Option
 ## Exit routing
 
 Exit stays **disabled** in the packaged ini (`enable=false`, `auto-routing=false`).
-Do not enable it for everyday use. On the Exit integrity review branch, see
-[exit-integrity-review.md](exit-integrity-review.md) and the README Exit status
-table (code fixes do not turn Exit on).
+Do not enable it for everyday use. See [exit-integrity.md](exit-integrity.md) and
+the README Exit status table (code fixes do not turn Exit on).
 
 ## Authenticity checklist
 
-1. Confirm the git commit SHA you intended (release notes name the tip SHA).
+1. Confirm the git commit SHA you intended (release notes name the commit SHA).
 2. Hash `session-router.exe` locally and keep that hash with the SHA.
 3. Confirm `wintun.dll` is **427552** bytes and amd64 from the official Wintun zip
    (or the copy shipped in the release zip — see DEPENDENCIES.txt).
