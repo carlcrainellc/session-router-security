@@ -55,3 +55,9 @@ By default this client does **not** look up normal internet names (anything that
 
 Those lookups get NXDOMAIN until you deliberately set an upstream DNS server in the
 config. Session names (`.sesh` / `.snode`) still work through Session Router.
+
+## Reachable
+
+By default this client does **not** publish itself as reachable on the network.
+
+Other people are not invited to connect in to you unless you turn `reachable` on.

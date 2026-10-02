@@ -478,10 +478,11 @@ namespace srouter
             "network",
             "reachable",
             FullClientOnly,
-            Default{true},
+            Default{false},
             assignment_acceptor(is_reachable),
             Comment{
-                "Determines whether we will pubish our service's ClientContact to the network (client default: TRUE)",
+                "Determines whether we will publish our service's ClientContact to the network.",
+                "Client default is FALSE (do not advertise reachability unless turned on).",
             });
 
         conf.define_option<bool>(
