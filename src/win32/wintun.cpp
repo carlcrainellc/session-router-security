@@ -218,7 +218,9 @@ namespace srouter::win32
                 if (auto wintun_ver = get_version())
                     log::info(
                         logcat,
-                        fmt::format("wintun version {}.{} loaded", (wintun_ver >> 16) & 0xff, wintun_ver & 0xff));
+                        "wintun version {}.{} loaded",
+                        (wintun_ver >> 16) & 0xff,
+                        wintun_ver & 0xff);
                 else
                     throw win32::error{"Failed to load wintun"};
                 if (auto impl = start_session(_handle, WINTUN_MAX_RING_CAPACITY))

@@ -1643,9 +1643,9 @@ namespace srouter
             if (rest.starts_with("tcp://"))
                 rest.remove_prefix(6);
             // Accept loopback only
-            return rest.starts_with("127.0.0.1:") or rest.starts_with("127.0.0.1/")
-                or rest == "127.0.0.1" or rest.starts_with("[::1]:") or rest.starts_with("[::1]/
-                or rest == "::1";
+            return rest.starts_with("127.0.0.1:") || rest.starts_with("127.0.0.1/")
+                || rest == "127.0.0.1" || rest.starts_with("[::1]:") || rest.starts_with("[::1]/
+                || rest == "::1";
         }
 
         void validate_api_hardening(const ApiConfig& api, bool enabled_flag)
