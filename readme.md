@@ -1,4 +1,4 @@
-# Session Router — security-oriented fork (Windows client)
+# Session Router — Security-oriented fork
 
 This repository is a **security-oriented fork** of Session Foundation’s
 [session-router](https://github.com/session-foundation/session-router), imported
