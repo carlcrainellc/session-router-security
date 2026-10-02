@@ -21,6 +21,12 @@ else
 fi
 
 mkdir -p "$build"
+
+# MinGW: use tip-local libzmq ExternalProject recipe (IPC off + toolchain order).
+if [ -f "$root/contrib/mingw/LocalLibzmq.cmake" ]; then
+  cp -v "$root/contrib/mingw/LocalLibzmq.cmake"     "$root/external/oxen-mq/cmake/local-libzmq/LocalLibzmq.cmake"
+fi
+
 cmake \
     -S "$root" -B "$build" \
     -G 'Unix Makefiles' \
