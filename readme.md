@@ -7,8 +7,8 @@ from the upstream `dev` branch at SHA
 
 Its identity is **security defaults and Exit honesty**. Windows is the primary
 build and run target in this guide. A stranger should be able to clone or
-download, run the Windows client, and understand the risks without lab or
-upstream-project context. Opening pull requests against Session Foundation is
+download, run the Windows client, and understand the risks without
+upstream-project lore or insider context. Opening pull requests against Session Foundation is
 **not** the goal of this repository.
 
 Many of the serious issues documented here (especially Exit routing and related
