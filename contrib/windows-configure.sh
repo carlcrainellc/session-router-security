@@ -27,6 +27,11 @@ if [ -f "$root/contrib/mingw/LocalLibzmq.cmake" ]; then
   cp -v "$root/contrib/mingw/LocalLibzmq.cmake"     "$root/external/oxen-mq/cmake/local-libzmq/LocalLibzmq.cmake"
 fi
 
+# MinGW/GCC14: libunbound ub_event callbacks use int fd; libevent wants intptr_t.
+if [ -f "$root/cmake/session-deps/deps/libunbound.cmake" ]; then
+  sed -i 's/-D_WIN32_WINNT=0x0600"/-D_WIN32_WINNT=0x0600 -Wno-incompatible-pointer-types"/'     "$root/cmake/session-deps/deps/libunbound.cmake" || true
+fi
+
 cmake \
     -S "$root" -B "$build" \
     -G 'Unix Makefiles' \
