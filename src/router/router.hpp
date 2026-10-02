@@ -337,6 +337,7 @@ namespace srouter
 
         RoutePoker* route_poker() { return _route_poker.get(); }
         const RoutePoker* route_poker() const { return _route_poker.get(); }
+        void set_route_poker(std::shared_ptr<RoutePoker> p) { _route_poker = std::move(p); }
 
         // Full platform (TunEndpoint) registers these so core link code can request a host
         // route to a relay first hop without linking RoutePoker into session-router-core.

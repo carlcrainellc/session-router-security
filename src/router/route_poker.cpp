@@ -203,14 +203,22 @@ void RoutePoker::update()
         // Refresh non-TUN gateway discovery before installing routes.
         update();
 
-        _up = true;
-        log::info(logcat, "RoutePoker coming up; poking routes");
-
         if (not _router.vpn_platform())
         {
-            log::warning(logcat, "RoutePoker: no vpn platform");
+            log::warning(logcat, "RoutePoker: no vpn platform; refuse put_up");
             return;
         }
+
+        // Fail closed: no default-via-TUN without a discovered non-TUN gateway.
+        if (not current_gateway4 and not current_gateway6)
+        {
+            log::warning(
+                logcat,
+                "RoutePoker: no non-TUN gateway discovered; refuse default route via TUN");
+            return;
+        }
+
+        log::info(logcat, "RoutePoker coming up; poking routes");
 
         vpn::AbstractRouteManager& route = _router.vpn_platform()->RouteManager();
 
@@ -218,72 +226,87 @@ void RoutePoker::update()
         if (_router.config().network.blackhole_routes)
             route.add_blackhole();
 
-        // First-hop / local route pokes need a discovered non-TUN gateway.  If discovery is
-        // unavailable yet, still install the default route via TUN.
         // IMPORTANT: flush *all* first-hop /32s (pre-up recorded + established + pending
         // outbound) *before* default-via-TUN, or edge QUIC is blackholed into the TUN and
         // path builds to the exit time out.
-        if (current_gateway4 or current_gateway6)
-        {
-            // 1) Flush hops recorded while !_up (poke_first_hop before put_up).
-            const auto recorded = poked_routes4.size() + poked_routes6.size();
-            refresh_all_routes();
+        const auto recorded = poked_routes4.size() + poked_routes6.size();
+        // Mark _up so add_route actually installs (enable_route) during flush.
+        _up = true;
+        refresh_all_routes();
 
-            int poked = 0;
-            auto poke_remote = [this, &poked](const quic::Address& remote) {
-                if (remote.is_any_addr())
-                    return;
-                if (remote.is_ipv4())
-                    add_route(remote.to_ipv4());
-                else
-                    add_route(remote.to_ipv6());
-                ++poked;
-            };
+        int poked = 0;
+        auto poke_remote = [this, &poked](const quic::Address& remote) {
+            if (remote.is_any_addr())
+                return;
+            if (remote.is_ipv4())
+                add_route(remote.to_ipv4());
+            else
+                add_route(remote.to_ipv6());
+            ++poked;
+        };
 
-            // 2) Established client/relay edges.
-            _router.link_manager().endpoint.for_each_relay_conn(
-                [&poke_remote](const RouterID&, link::Connection& conn) {
+        // Established client/relay edges.
+        _router.link_manager().endpoint.for_each_relay_conn(
+            [&poke_remote](const RouterID&, link::Connection& conn) {
+                poke_remote(conn.conn->remote());
+            });
+
+        // In-flight dials not yet in client_conns (pending_outbound).
+        _router.link_manager().endpoint.for_each_pending_outbound(
+            [&poke_remote](const RouterID&, link::Connection& conn) {
+                if (conn.conn)
                     poke_remote(conn.conn->remote());
-                });
+            });
 
-            // 3) In-flight dials not yet in client_conns (pending_outbound).
-            _router.link_manager().endpoint.for_each_pending_outbound(
-                [&poke_remote](const RouterID&, link::Connection& conn) {
-                    if (conn.conn)
-                        poke_remote(conn.conn->remote());
-                });
+        auto& local = _router.link_manager().local();
+        if (not local.is_any_addr())
+            poke_remote(local);
 
-            auto& local = _router.link_manager().local();
-            if (not local.is_any_addr())
-                poke_remote(local);
+        const auto installed = poked_routes4.size() + poked_routes6.size();
+        log::info(
+            logcat,
+            "RoutePoker: flushed {} pre-up recorded hop(s); poked {} live/pending edge remote(s); "
+            "pin map size {}",
+            recorded,
+            poked,
+            installed);
 
-            log::info(
-                logcat,
-                "RoutePoker: flushed {} pre-up recorded hop(s); poked {} live/pending edge remote(s)",
-                recorded,
-                poked);
-
-            if (poked == 0 and recorded == 0)
-                log::warning(
-                    logcat,
-                    "RoutePoker: gateway known but zero edge remotes to poke; "
-                    "default-via-TUN may blackhole relay traffic");
-        }
-        else
+        // Fail closed: empty pin list / zero host routes — do not install default-via-TUN.
+        if (installed == 0)
+        {
             log::warning(
                 logcat,
-                "RoutePoker: no non-TUN gateway discovered yet; "
-                "skipping first-hop host routes (default route via TUN still applied)");
+                "RoutePoker: pin list empty after flush; refuse default route via TUN");
+            _up = false;
+            if (_router.config().network.blackhole_routes)
+                route.delete_blackhole();
+            return;
+        }
 
-        // Default route via Session Router TUN — only AFTER first-hop flush finishes
-        // (win32 route.exe Exec is synchronous).
+        // Default route via Session Router TUN — only AFTER successful first-hop pins.
         if (auto& tun = _router.tun_endpoint())
         {
-            tun->add_default_route();
-            log::info(logcat, "route poker: default route via TUN installed");
+            try
+            {
+                tun->add_default_route();
+                log::info(logcat, "route poker: default route via TUN installed");
+            }
+            catch (const std::exception& e)
+            {
+                log::warning(logcat, "route poker: default route via TUN failed: {}; rolling back", e.what());
+                delete_all_routes();
+                if (_router.config().network.blackhole_routes)
+                    route.delete_blackhole();
+                _up = false;
+                return;
+            }
         }
         else
+        {
             log::warning(logcat, "route poker: no TUN endpoint; cannot install default route");
+            _up = false;
+            return;
+        }
         log::info(logcat, "route poker up");
     }
 
@@ -294,25 +317,20 @@ void RoutePoker::update()
         // Clear _up first so a reconnect during slow win32 route DELETE can put_up again.
         _up = false;
 
-        // unpoke routes for first hops
-        _router.link_manager().endpoint.for_each_relay_conn([this](const RouterID&, link::Connection& conn) {
-            auto remote = conn.conn->remote();
-            if (remote.is_any_addr())
-                return;
-            if (remote.is_ipv4())
-                delete_route(remote.to_ipv4());
-            else
-                delete_route(remote.to_ipv6());
-        });
+        // Delete every recorded host pin (not only current relay_conns).
+        delete_all_routes();
 
         if (_enabled)
         {
             if (auto& tun = _router.tun_endpoint())
                 tun->delete_default_route();
 
-            vpn::AbstractRouteManager& route = _router.vpn_platform()->RouteManager();
-            if (_router.config().network.blackhole_routes)
-                route.delete_blackhole();
+            if (_router.vpn_platform())
+            {
+                vpn::AbstractRouteManager& route = _router.vpn_platform()->RouteManager();
+                if (_router.config().network.blackhole_routes)
+                    route.delete_blackhole();
+            }
             log::info(logcat, "route poker down");
         }
     }

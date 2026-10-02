@@ -3,6 +3,8 @@
 #include "exception.hpp"
 #include "util/logging.hpp"
 
+#include <fmt/core.h>
+
 #include <array>
 
 namespace srouter::win32
@@ -25,6 +27,31 @@ namespace srouter::win32
     }  // namespace
 
     void Exec(std::string exe, std::string args) { OneShotExec{exe, args}; }
+
+    bool ExecChecked(std::string exe, std::string args)
+    {
+        const auto cmdline = fmt::format("{}\\{} {}", SystemExeDir(), exe, args);
+        log::info(logcat, "exec-checked: {}", cmdline);
+        STARTUPINFOA si{};
+        PROCESS_INFORMATION pi{};
+        std::string mutable_cmd = cmdline;
+        if (not CreateProcessA(nullptr, mutable_cmd.data(), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &pi))
+        {
+            log::warning(logcat, "exec-checked: CreateProcess failed for {}", exe);
+            return false;
+        }
+        WaitForSingleObject(pi.hProcess, 5000);
+        DWORD code = 1;
+        GetExitCodeProcess(pi.hProcess, &code);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        if (code != 0)
+        {
+            log::warning(logcat, "exec-checked: {} exited with code {}", exe, code);
+            return false;
+        }
+        return true;
+    }
 
     OneShotExec::OneShotExec(std::string cmd, std::chrono::milliseconds timeout)
         : _si{}, _pi{}, _timeout{static_cast<DWORD>(timeout.count())}

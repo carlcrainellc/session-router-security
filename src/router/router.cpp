@@ -447,6 +447,14 @@ namespace srouter
         if (!embedded())
             sys::service_manager->starting();
 
+        // Fail closed: [exit] enable with no routed-range / policy must not forward everything.
+        if (_config.exit.exit_enabled and _config.exit.exit_policy.empty())
+        {
+            throw std::runtime_error{
+                "[exit] enable=true requires at least one routed-range (or policy); "
+                "empty policy would forward all traffic"};
+        }
+
         if (_config.exit.exit_enabled and is_service_node)
             throw std::runtime_error{
                 "Session Router cannot simultaneously operate as a service node and client-operated exit node "
