@@ -40,9 +40,11 @@ namespace srouter::handlers
 
         // Prefer NetworkConfig.traffic_policy (wired from ExitConfig in process_config);
         // fall back to ExitConfig.exit_policy directly so exit tips work even if wiring lags.
+        // If exit is enabled with an empty policy, keep an empty ExitPolicy (deny-all) rather
+        // than leaving nullopt (which used to allow all traffic).
         if (net_conf.traffic_policy)
             _exit_policy = net_conf.traffic_policy;
-        else if (exit_conf.exit_enabled and not exit_conf.exit_policy.empty())
+        else if (exit_conf.exit_enabled)
             _exit_policy = exit_conf.exit_policy;
 
         _if_name = net_conf._if_name.value_or("");
@@ -123,6 +125,7 @@ namespace srouter::handlers
 
         // Route poker lives in the full platform (this TU). Core Router cannot link it.
         _route_poker = std::make_shared<RoutePoker>(_router);
+        _router.set_route_poker(_route_poker);
         _route_poker->start();
         // Let core link layer request first-hop host routes (needed after default-via-TUN).
         _router.set_first_hop_poker(
@@ -365,16 +368,16 @@ namespace srouter::handlers
 
     bool TunEndpoint::remote_is_exit_broker(const NetworkAddress& remote) const
     {
-        const auto& ranges = _router.config().exit.ranges;
-        if (ranges.contains(remote))
-            return true;
-        if (auto session = _router.session_endpoint().get_session(remote))
-            return session->is_exit_capable;
-        return false;
+        // Only remotes listed in exit.ranges are exit brokers for inbound return traffic.
+        // Do not treat an arbitrary exit-policy ClientContact peer as a broker.
+        return _router.config().exit.ranges.contains(remote);
     }
 
     std::optional<NetworkAddress> TunEndpoint::exit_for_ip(const ipv4& dest) const
     {
+        // Longest-prefix match when ranges overlap (deterministic).
+        std::optional<NetworkAddress> best;
+        int best_mask = -1;
         for (const auto& [exit_addr, range_list] : _router.config().exit.ranges)
         {
             for (const auto& r : range_list)
@@ -384,15 +387,24 @@ namespace srouter::handlers
                     // mask==0 is "all IPv4" (bare reserved-range=EXIT.sesh).  oxen-quic
                     // ipv4::to_base(0) hits <<32 UB and contains() can wrongly return false.
                     if (r4->mask == 0 or r4->contains(dest))
-                        return exit_addr;
+                    {
+                        const int m = static_cast<int>(r4->mask);
+                        if (m > best_mask)
+                        {
+                            best_mask = m;
+                            best = exit_addr;
+                        }
+                    }
                 }
             }
         }
-        return std::nullopt;
+        return best;
     }
 
     std::optional<NetworkAddress> TunEndpoint::exit_for_ip(const ipv6& dest) const
     {
+        std::optional<NetworkAddress> best;
+        int best_mask = -1;
         for (const auto& [exit_addr, range_list] : _router.config().exit.ranges)
         {
             for (const auto& r : range_list)
@@ -400,11 +412,18 @@ namespace srouter::handlers
                 if (const auto* r6 = std::get_if<ipv6_range>(&r))
                 {
                     if (r6->mask == 0 or r6->contains(dest))
-                        return exit_addr;
+                    {
+                        const int m = static_cast<int>(r6->mask);
+                        if (m > best_mask)
+                        {
+                            best_mask = m;
+                            best = exit_addr;
+                        }
+                    }
                 }
             }
         }
-        return std::nullopt;
+        return best;
     }
 
     void TunEndpoint::add_default_route()
@@ -528,34 +547,38 @@ namespace srouter::handlers
 
             if (exit_remote)
             {
-                log::info(
-                    logcat,
-                    "Outbound packet {} routed via exit broker {}",
-                    pkt.info_line(),
-                    *exit_remote);
                 // Keep original dest IP in the packet; exit will NAT/forward it.
-                // Only clear overlay-local addressing when sending to a mapped .sesh peer.
-                auto send_to_exit = [&](session::Session* session) {
-                    if (not session)
-                        return false;
-                    // Do not mark exit-capable here. The real flag comes from update_intros / ExitPolicy.
+                // Do not send clearnet via a mapped exit until the session is live and
+                // EXIT_CAPABLE — a wrong or not-yet-ready .sesh must not get packets early.
+                auto* session = _router.session_endpoint().get_session(*exit_remote);
+                if (session and session->is_exit_capable)
+                {
+                    log::info(
+                        logcat,
+                        "Outbound packet {} routed via exit broker {}",
+                        pkt.info_line(),
+                        *exit_remote);
                     session->send_session_data_message(pkt.span(), pkt.protocol());
-                    return true;
-                };
-
-                if (send_to_exit(_router.session_endpoint().get_session(*exit_remote)))
                     return;
+                }
 
-                try
+                // Session missing or not yet EXIT_CAPABLE: start/keep session, drop this packet.
+                if (not session)
                 {
-                    auto s = _router.session_endpoint().initiate_remote_session(*exit_remote, nullptr);
-                    if (send_to_exit(s.get()))
-                        return;
+                    try
+                    {
+                        _router.session_endpoint().initiate_remote_session(*exit_remote, nullptr);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        log::warning(logcat, "Failed to initiate exit session to {}: {}", *exit_remote, e.what());
+                    }
                 }
-                catch (const std::exception& e)
-                {
-                    log::warning(logcat, "Failed to initiate exit session to {}: {}", *exit_remote, e.what());
-                }
+                else
+                    log::debug(
+                        logcat,
+                        "Holding outbound packet for mapped exit {} (session not EXIT_CAPABLE yet)",
+                        *exit_remote);
             }
 
             log::debug(logcat, "Could not find remote for route {} (sending ICMP unreachable)", pkt.info_line());
@@ -697,7 +720,8 @@ namespace srouter::handlers
 
     bool TunEndpoint::is_allowing_traffic(const IPPacket& pkt) const
     {
-        return _exit_policy ? _exit_policy->allow_ip_traffic(pkt) : true;
+        // Fail closed: exit enable with no policy must not forward everything.
+        return _exit_policy ? _exit_policy->allow_ip_traffic(pkt) : false;
     }
 
     std::pair<std::optional<ipv4>, std::optional<ipv6>> TunEndpoint::get_mapped_ip(const NetworkAddress& addr)
