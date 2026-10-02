@@ -40,3 +40,10 @@ Two modes (no third mode in this tip):
 Exit routing (sending your normal internet traffic out through a Session Router exit)
 is **not ready for general use**. Keep Exit off unless you are doing a controlled
 private test and know exactly what you are turning on.
+
+## Network bind
+
+The packaged client does **not** open fixed port 1191 on every network card.
+
+By default it uses a temporary port. Do not set `listen=:1191` unless you know you need
+it and you set `allow-all-interfaces=true` on purpose.

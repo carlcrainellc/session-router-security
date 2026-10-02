@@ -1072,12 +1072,14 @@ namespace srouter
               : Comment{
                 "IP and/or port for Session Router to use for connections to relays.",
                 "",
-                "Defaults to ':1091', which means to use port 1091 on any available address.",
+                "Default for clients is an ephemeral port (not a fixed :1191 on all interfaces).",
+                "Packaged clients must not set listen=:1191. Use a specific IP if you need a",
+                "fixed port, or set allow-all-interfaces=true to explicitly opt in.",
                 "",
                 "Examples:",
                 "    listen=15.5.29.5:1099 -- uses a specific IP and port",
                 "    listen=10.0.2.2 -- uses a specific IP, default port (1191)",
-                "    listen=:1234 -- uses any IP, port 1234",
+                "    listen=:1234 -- uses any IP, port 1234 (requires allow-all-interfaces)",
             },
             [this, parse_addr_for_link](const std::string& arg) {
                 if (listen_addr)
@@ -1085,6 +1087,18 @@ namespace srouter
                         "Multiple listen addresses found.  If upgrading from an older Session Router, delete extra "
                         "[bind]:inbound and [bind]:IP and use only one [bind]:listen"};
                 listen_addr = parse_addr_for_link(arg);
+            });
+
+        conf.define_option<bool>(
+            "bind",
+            "allow-all-interfaces",
+            FullClientOnly,
+            Default{false},
+            assignment_acceptor(allow_all_interfaces),
+            Comment{
+                "When false (default), refuse a client listen address that binds a fixed port on",
+                "all interfaces (for example listen=:1191). Set true only if you intentionally",
+                "want that behavior.",
             });
     }
 
@@ -1653,6 +1667,20 @@ namespace srouter
                         "[api] bind must be loopback or ipc when enabled (refusing '{}')"_format(a)};
             }
         }
+
+        void validate_bind_hardening(config::Type type, const LinksConfig& links)
+        {
+            if (type != config::Type::FullClient)
+                return;
+            if (not links.listen_addr)
+                return;
+            const auto& a = *links.listen_addr;
+            // Refuse fixed-port all-interfaces bind unless explicitly allowed.
+            if (a.is_any_addr() and not a.is_any_port() and not links.allow_all_interfaces)
+                throw std::invalid_argument{
+                    "[bind] listen=:{} on all interfaces is not allowed for clients; omit listen "
+                    "(ephemeral port) or set a specific IP, or set allow-all-interfaces=true"_format(a.port())};
+        }
     }  // namespace
 
     Config::Config(config::Type type, std::filesystem::path conf_file)
@@ -1677,6 +1705,7 @@ namespace srouter
         defs.process();
 
         validate_api_hardening(api, api.enable_rpc_server);
+        validate_bind_hardening(type, links);
     }
 
 }  // namespace srouter
