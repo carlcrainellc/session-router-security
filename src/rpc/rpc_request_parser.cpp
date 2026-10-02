@@ -71,7 +71,14 @@ namespace srouter::rpc
 
     void parse_request(SwapExits& swapexits, rpc_input input)
     {
-        get_values(input, "exit_addresses", swapexits.request.exit_addresses, "token", swapexits.request.token);
+        get_values(
+            input,
+            "exit_addresses",
+            swapexits.request.exit_addresses,
+            "ip_ranges",
+            swapexits.request.ip_ranges,
+            "token",
+            swapexits.request.token);
     }
 
 #if 0

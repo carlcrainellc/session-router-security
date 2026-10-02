@@ -863,7 +863,10 @@ namespace srouter
                 try_calling(logcat, callback);
 
             if (persistent || !fire_now)
-                (with_paths ? _on_path_disconnected : _on_path_connected).emplace_back(std::move(callback), persistent);
+                // with_paths=false → edge disconnect (NOT path-connected; that was an upstream typo
+                // that tore down RoutePoker as soon as the first inbound path established).
+                (with_paths ? _on_path_disconnected : _on_edge_disconnected)
+                    .emplace_back(std::move(callback), persistent);
         });
     }
 
@@ -877,6 +880,28 @@ namespace srouter
                 ++it;
             else
                 it = callbacks.erase(it);
+        }
+    }
+
+    void Router::set_first_hop_poker(std::function<void(const ipv4&)> v4, std::function<void(const ipv6&)> v6)
+    {
+        _first_hop_poke_v4 = std::move(v4);
+        _first_hop_poke_v6 = std::move(v6);
+    }
+
+    void Router::poke_first_hop(const quic::Address& addr)
+    {
+        if (addr.is_any_addr())
+            return;
+        if (addr.is_ipv4())
+        {
+            if (_first_hop_poke_v4)
+                _first_hop_poke_v4(addr.to_ipv4());
+        }
+        else if (addr.is_ipv6())
+        {
+            if (_first_hop_poke_v6)
+                _first_hop_poke_v6(addr.to_ipv6());
         }
     }
 

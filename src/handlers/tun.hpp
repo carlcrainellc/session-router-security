@@ -5,6 +5,7 @@
 
 #include <oxen/quic/timer_id.hpp>
 #include "handlers/tun_interface.hpp"
+#include "router/route_poker.hpp"
 #include "net/ip_packet.hpp"
 #include "util/thread/threading.hpp"
 #include "vpn/packet_router.hpp"
@@ -45,6 +46,9 @@ namespace srouter::handlers
 
         std::optional<net::ExitPolicy> _exit_policy = std::nullopt;
 
+        // Owned here (full platform) — Router core cannot link RoutePoker.
+        std::shared_ptr<RoutePoker> _route_poker;
+
         /// a file to load / store the ephemeral address map to
         std::optional<std::filesystem::path> _persisting_addr_file = std::nullopt;
         bool persist_addrs{false};
@@ -74,7 +78,7 @@ namespace srouter::handlers
 
         bool is_service_node() const;
 
-        bool is_exit_node() const;
+        bool is_exit_node() const override;
 
         // INPROGRESS: new API
         // Handles an outbound packet going OUT to the network
@@ -156,6 +160,14 @@ namespace srouter::handlers
         Router& router() { return _router; }
 
         void start_poller() override;
+
+        void add_default_route() override;
+        void delete_default_route() override;
+
+        // Look up which configured exit .sesh should carry traffic to dest IP (reserved-range).
+        std::optional<NetworkAddress> exit_for_ip(const ipv4& dest) const;
+        std::optional<NetworkAddress> exit_for_ip(const ipv6& dest) const;
+        bool remote_is_exit_broker(const NetworkAddress& remote) const;
 
       private:
         // Stores assigned IP's for each session in/out of this Session Router instance

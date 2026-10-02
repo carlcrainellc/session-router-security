@@ -216,6 +216,7 @@ namespace srouter::rpc
         struct request_parameters
         {
             std::vector<std::string> exit_addresses;
+            std::vector<std::string> ip_ranges;
             std::string token;
         } request;
     };

@@ -47,6 +47,7 @@ namespace srouter
         // void set_dns_mode(bool using_exit_mode) const;
 
         bool enabled() const { return _enabled; }
+        void set_enabled(bool v) { _enabled = v; }
 
       private:
         void update();

@@ -1,5 +1,6 @@
 #include "route_poker.hpp"
 
+#include "handlers/tun.hpp"
 #include "link/link_manager.hpp"
 #include "router.hpp"
 
@@ -7,18 +8,29 @@ namespace srouter
 {
     static auto logcat = log::Cat("route_poker");
 
-    RoutePoker::RoutePoker(Router& r) : _router{r} {}
+    RoutePoker::RoutePoker(Router& r) : _router{r}
+    {
+        _enabled = r.config().network.enable_route_poker;
+        if (_enabled)
+            log::info(logcat, "Route poker enabled by [network] auto-routing");
+    }
 
     template <IP46 IP>
     void RoutePoker::add_route(const IP& ip)
     {
-        if (not _up)
-            return;
-
-        // set up route and apply as needed
+        // Always record the hop so pre-put_up poke_first_hop is not dropped on the floor.
+        // When !_up we only store (empty gateway); put_up flushes via refresh/enable before
+        // installing default-via-TUN.
         auto& poked_rs = poked_routes<IP>();
         auto [it, new_route] = poked_rs.emplace(ip, IP{});
         auto& gw = it->second;
+
+        if (not _up)
+        {
+            if (new_route)
+                log::debug(logcat, "RoutePoker: recorded first-hop {} pending put_up", ip);
+            return;
+        }
 
         auto& current_gw = current_gateway<IP>();
         if (!current_gw)
@@ -28,7 +40,7 @@ namespace srouter
         }
 
         // remove existing mapping as needed
-        if (!new_route)
+        if (!new_route and gw != IP{})
             disable_route(ip, gw);
         // update and add new mapping
         gw = *current_gw;
@@ -77,14 +89,8 @@ namespace srouter
             return;
         }
 
-        // TODO FIXME: this should be enabled again, but it doesn't seem very nice to have this on
-        // such a tight timer.  Perhaps we could trigger it from the appropriate place, and if not,
-        // at least reduce the timer frequency.
-
-        // router.loop()->call_every(100ms, weak_from_this(), [self = weak_from_this()]() {
-        //     if (auto ptr = self.lock())
-        //         ptr->update();
-        // });
+        // Discover gateway once at start; put_up() re-discovers.  Avoid 100ms hammer.
+        update();
     }
 
     void RoutePoker::disable_all_routes()
@@ -112,60 +118,73 @@ namespace srouter
         _router.vpn_platform()->RouteManager().delete_blackhole();
     }
 
-    void RoutePoker::update()
+void RoutePoker::update()
     {
-        // TODO FIXME
-        //
-        // // ensure we have an endpoint
-        // auto ep = router.hidden_service_context().GetDefault();
-        // if (ep == nullptr)
-        //   return;
-        // // ensure we have a vpn platform
-        // auto* platform = router.vpn_platform();
-        // if (platform == nullptr)
-        //   return;
-        // // ensure we have a vpn interface
-        // auto* vpn = ep->GetVPNInterface();
-        // if (vpn == nullptr)
-        //   return;
+        // Discover non-TUN gateways via VPN RouteManager (same path as linux.hpp).
+        // TunEndpoint is full-platform only; RoutePoker lives in the same TU/link unit.
+        auto platform = _router.vpn_platform();
+        if (not platform)
+            return;
+        auto& tun_base = _router.tun_endpoint();
+        if (not tun_base)
+            return;
+        auto* tun = dynamic_cast<handlers::TunEndpoint*>(tun_base.get());
+        if (tun == nullptr)
+            return;
+        auto* vpn = tun->get_vpn_interface();
+        if (vpn == nullptr)
+            return;
 
-        // auto& route = platform->RouteManager();
+        auto gateways = platform->RouteManager().get_non_interface_gateways(*vpn);
 
-        // // get current gateways, assume sorted by lowest metric first
-        // auto gateways = route.get_non_interface_gateways(*vpn);
-        // std::optional<quic::Address> next_gw;
+        std::optional<ipv4> next4;
+        std::optional<ipv6> next6;
+        for (auto& g : gateways)
+        {
+            if (g.is_ipv4() and not next4)
+            {
+                auto v4 = g.to_ipv4();
+                if (v4 != ipv4{})
+                    next4 = v4;
+            }
+            else if (g.is_ipv6() and not next6)
+            {
+                auto v6 = g.to_ipv6();
+                if (v6 != ipv6{})
+                    next6 = v6;
+            }
+        }
 
-        // for (auto& g : gateways)
-        // {
-        //   if (g.is_ipv4())
-        //   {
-        //     next_gw = g;
-        //     break;
-        //   }
-        // }
+        bool changed = false;
+        if (next4 != current_gateway4)
+        {
+            if (next4 and current_gateway4)
+                log::info(logcat, "IPv4 default gateway changed from {} to {}", *current_gateway4, *next4);
+            else if (current_gateway4)
+                log::warning(logcat, "IPv4 default gateway {} has gone away", *current_gateway4);
+            else if (next4)
+                log::info(logcat, "IPv4 default gateway found at {}", *next4);
+            current_gateway4 = next4;
+            changed = true;
+        }
+        if (next6 != current_gateway6)
+        {
+            if (next6 and current_gateway6)
+                log::info(logcat, "IPv6 default gateway changed from {} to {}", *current_gateway6, *next6);
+            else if (current_gateway6)
+                log::warning(logcat, "IPv6 default gateway {} has gone away", *current_gateway6);
+            else if (next6)
+                log::info(logcat, "IPv6 default gateway found at {}", *next6);
+            current_gateway6 = next6;
+            changed = true;
+        }
 
-        // // update current gateway and apply state changes as needed
-        // if (!(current_gateway == next_gw))
-        // {
-        //   if (next_gw and current_gateway)
-        //   {
-        //     log::info(logcat, "default gateway changed from {} to {}", *current_gateway,
-        //     *next_gw); current_gateway = next_gw; refresh_all_routes();
-        //   }
-        //   else if (current_gateway)
-        //   {
-        //     log::warning(logcat, "default gateway {} has gone away", *current_gateway);
-        //     current_gateway = next_gw;
-        //   }
-        //   else  // next_gw and not m_CurrentGateway
-        //   {
-        //     log::info(logcat, "default gateway found at {}", *next_gw);
-        //     current_gateway = next_gw;
-        //   }
-        // }
-        // else if (router.HasClientExit())
-        //   put_up();
+        if (changed)
+            refresh_all_routes();
+        // Do not call put_up() here — put_up() itself calls update(); auto-up is
+        // driven by TunEndpoint on_connected when exit.ranges is non-empty.
     }
+
 
     template <IP46 IP>
     inline static constexpr auto ip_name = std::same_as<IP, ipv4> ? "IPv4"sv : "IPv6"sv;
@@ -174,7 +193,6 @@ namespace srouter
     {
         if (_up)
             return;
-        _up = true;
 
         if (!_enabled)
         {
@@ -182,13 +200,17 @@ namespace srouter
             return;
         }
 
-        if (!current_gateway4 && !current_gateway6)
+        // Refresh non-TUN gateway discovery before installing routes.
+        update();
+
+        _up = true;
+        log::info(logcat, "RoutePoker coming up; poking routes");
+
+        if (not _router.vpn_platform())
         {
-            log::warning(logcat, "RoutePoker came up, but we don't appear to have any gateways!");
+            log::warning(logcat, "RoutePoker: no vpn platform");
             return;
         }
-
-        log::info(logcat, "RoutePoker coming up; poking routes");
 
         vpn::AbstractRouteManager& route = _router.vpn_platform()->RouteManager();
 
@@ -196,42 +218,87 @@ namespace srouter
         if (_router.config().network.blackhole_routes)
             route.add_blackhole();
 
-        // explicit route pokes for first hops
-        _router.link_manager().endpoint.for_each_relay_conn([this](const RouterID&, link::Connection& conn) {
-            auto remote = conn.conn->remote();
-            if (remote.is_ipv4())
-                add_route(remote.to_ipv4());
-            else
-                add_route(remote.to_ipv6());
-        });
+        // First-hop / local route pokes need a discovered non-TUN gateway.  If discovery is
+        // unavailable yet, still install the default route via TUN.
+        // IMPORTANT: flush *all* first-hop /32s (pre-up recorded + established + pending
+        // outbound) *before* default-via-TUN, or edge QUIC is blackholed into the TUN and
+        // path builds to the exit time out.
+        if (current_gateway4 or current_gateway6)
+        {
+            // 1) Flush hops recorded while !_up (poke_first_hop before put_up).
+            const auto recorded = poked_routes4.size() + poked_routes6.size();
+            refresh_all_routes();
 
-        auto& local = _router.link_manager().local();
-        if (local.is_ipv4())
-            add_route(local.to_ipv4());
+            int poked = 0;
+            auto poke_remote = [this, &poked](const quic::Address& remote) {
+                if (remote.is_any_addr())
+                    return;
+                if (remote.is_ipv4())
+                    add_route(remote.to_ipv4());
+                else
+                    add_route(remote.to_ipv6());
+                ++poked;
+            };
+
+            // 2) Established client/relay edges.
+            _router.link_manager().endpoint.for_each_relay_conn(
+                [&poke_remote](const RouterID&, link::Connection& conn) {
+                    poke_remote(conn.conn->remote());
+                });
+
+            // 3) In-flight dials not yet in client_conns (pending_outbound).
+            _router.link_manager().endpoint.for_each_pending_outbound(
+                [&poke_remote](const RouterID&, link::Connection& conn) {
+                    if (conn.conn)
+                        poke_remote(conn.conn->remote());
+                });
+
+            auto& local = _router.link_manager().local();
+            if (not local.is_any_addr())
+                poke_remote(local);
+
+            log::info(
+                logcat,
+                "RoutePoker: flushed {} pre-up recorded hop(s); poked {} live/pending edge remote(s)",
+                recorded,
+                poked);
+
+            if (poked == 0 and recorded == 0)
+                log::warning(
+                    logcat,
+                    "RoutePoker: gateway known but zero edge remotes to poke; "
+                    "default-via-TUN may blackhole relay traffic");
+        }
         else
-            add_route(local.to_ipv6());
-        // add default route
-        //
-        // TODO FIXME -- with this commented out exit mode cannot work!!
-        //
-        log::critical(logcat, "FIXME TODO: not adding default route yet because ???");
-        // const auto ep = router.hidden_service_context().GetDefault();
-        // if (auto* vpn = ep->GetVPNInterface())
-        //   route.add_default_route_via_interface(*vpn);
-        log::info(logcat, "route poker up");
+            log::warning(
+                logcat,
+                "RoutePoker: no non-TUN gateway discovered yet; "
+                "skipping first-hop host routes (default route via TUN still applied)");
 
-        // TODO FIXME
-        // set_dns_mode(true);
+        // Default route via Session Router TUN — only AFTER first-hop flush finishes
+        // (win32 route.exe Exec is synchronous).
+        if (auto& tun = _router.tun_endpoint())
+        {
+            tun->add_default_route();
+            log::info(logcat, "route poker: default route via TUN installed");
+        }
+        else
+            log::warning(logcat, "route poker: no TUN endpoint; cannot install default route");
+        log::info(logcat, "route poker up");
     }
 
     void RoutePoker::put_down()
     {
         if (!_up)
             return;
+        // Clear _up first so a reconnect during slow win32 route DELETE can put_up again.
+        _up = false;
 
         // unpoke routes for first hops
         _router.link_manager().endpoint.for_each_relay_conn([this](const RouterID&, link::Connection& conn) {
             auto remote = conn.conn->remote();
+            if (remote.is_any_addr())
+                return;
             if (remote.is_ipv4())
                 delete_route(remote.to_ipv4());
             else
@@ -240,19 +307,14 @@ namespace srouter
 
         if (_enabled)
         {
-            // TODO FIXME
-            // vpn::AbstractRouteManager& route = router.vpn_platform()->RouteManager();
-            // const auto ep = router.hidden_service_context().GetDefault();
-            // if (auto* vpn = ep->GetVPNInterface())
-            //   route.delete_default_route_via_interface(*vpn);
+            if (auto& tun = _router.tun_endpoint())
+                tun->delete_default_route();
 
-            // delete route blackhole
-            // route.delete_blackhole();
-            // log::info(logcat, "route poker down");
+            vpn::AbstractRouteManager& route = _router.vpn_platform()->RouteManager();
+            if (_router.config().network.blackhole_routes)
+                route.delete_blackhole();
+            log::info(logcat, "route poker down");
         }
-
-        // set_dns_mode(false);
-        _up = false;
     }
 
 }  // namespace srouter

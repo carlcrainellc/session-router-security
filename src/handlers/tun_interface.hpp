@@ -36,6 +36,14 @@ namespace srouter::handlers
 
         virtual std::pair<std::optional<NetworkAddress>, bool> reverse_lookup(const ipv4& ip) = 0;
         virtual std::pair<std::optional<NetworkAddress>, bool> reverse_lookup(const ipv6& ip) = 0;
+
+        // Exit-client tip: install / remove OS default route via this TUN (route poker).
+        // No-op default so embedded/core builds stay free of vpn types.
+        virtual void add_default_route() {}
+        virtual void delete_default_route() {}
+
+        // True when this tip is operating as a clear exit (config [exit] enable=true).
+        virtual bool is_exit_node() const { return false; }
     };
 
 }  // namespace srouter::handlers
