@@ -34,7 +34,7 @@ defaults and documentation so they are harder to miss.
 | Exit | **off** (`enable=false`) |
 | Auto exit routing | **off** (`auto-routing=false`) |
 | Windows stay-up | drain timer, TUN-scoped IPv6 soft-fail, libzstd linked |
-| Published artifact | **exe + config/docs only** — no `.dll` files |
+| Published artifact | **static exe + official `wintun.dll`** (plus ini / bootstrap / docs); no MinGW runtime DLLs |
 
 `mode=chain3` is an **operator** path (diverse `rpc=` seeds, 2-of-3 reconcile). It
 is **not** the double-click default. See the default-vs-developer table in
@@ -54,31 +54,35 @@ Do **not** turn Exit on for everyday browsing.
 
 ### Exit / client-routing flaw status
 
-**Skimmer note:** rows below are *not* automatically “unfixed in the default
-build.” Several serious items are **mitigated by Exit (and auto-routing) staying
-off**. “Still open if Exit enabled” means the underlying protocol / client issue
-remains if an operator turns Exit on — it does **not** mean the shipped default
-exposes that path.
+**Branch note:** this branch (`private/exit-integrity`) is the **Exit integrity
+review** pack. It ports client Exit integrity fixes while keeping Exit **off** in
+the packaged client until review says otherwise. See
+[docs/exit-integrity-review.md](docs/exit-integrity-review.md).
+
+**How to read the table:** “Fixed in this fork (code)” means the underlying
+handler / route / RPC logic is corrected on this branch. Exit still stays **off
+by default** for review — turning Exit on is an operator choice, not the
+shipped default. Rows that remain mitigated-only (no code fix yet) say so.
 
 | Flaw | Scope | Status in this fork |
 |------|-------|---------------------|
-| Broker trust / injection | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| EXIT_CAPABLE gate | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Last unmap leaves routes | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Broker trust / injection | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| EXIT_CAPABLE gate | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Last unmap leaves routes | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
 | Map / swap / unmap without real API credentials | Local API / Exit controls | Fixed in this fork (code/docs) when API used (API off by default; if on need `auth=`) |
 | IPv6 disable / soft-fail hits all adapters | Windows-specific | Fixed in this fork (code/docs) — TUN-scoped |
-| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Mitigated by Exit-off / auto-routing off; Still open if Exit + auto-routing on |
+| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Fixed in this fork (code) — Exit remains off by default for review |
 
 **Defaults around Exit (not an Exit-on product claim):** packaged client keeps
 `[exit] enable=false` and `auto-routing=false`. Clearnet DNS (`upstream=`) and
 `reachable` stay **off** by default so a normal install does not widen exposure
-beside the Exit switch. Enabling Exit yourself accepts the “Still open if Exit
-enabled” rows above.
+beside the Exit switch. Code fixes above do **not** turn Exit on.
 
-Full write-up: [docs/windows-client.md](docs/windows-client.md).
+Full write-up: [docs/windows-client.md](docs/windows-client.md). Review notes:
+[docs/exit-integrity-review.md](docs/exit-integrity-review.md).
 
 ## Bind lesson: all-interfaces ephemeral vs “bind loopback”
 

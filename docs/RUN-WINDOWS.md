@@ -85,7 +85,9 @@ See [windows-client.md](windows-client.md). Defaults use **normal** mode. Option
 ## Exit routing
 
 Exit stays **disabled** in the packaged ini (`enable=false`, `auto-routing=false`).
-Do not enable it for everyday use. See the README Exit status table.
+Do not enable it for everyday use. On the Exit integrity review branch, see
+[exit-integrity-review.md](exit-integrity-review.md) and the README Exit status
+table (code fixes do not turn Exit on).
 
 ## Authenticity checklist
 

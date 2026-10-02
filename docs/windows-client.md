@@ -146,29 +146,29 @@ feature.
 
 ### Exit / client-routing flaw status
 
-**Skimmer note:** rows below are *not* automatically “unfixed in the default
-build.” Several serious items are **mitigated by Exit (and auto-routing) staying
-off**. “Still open if Exit enabled” means the underlying protocol / client issue
-remains if an operator turns Exit on — it does **not** mean the shipped default
-exposes that path.
+**Branch note:** on `private/exit-integrity`, this table reflects the Exit
+integrity review pack. Exit stays **off** in the packaged client. Details:
+[exit-integrity-review.md](exit-integrity-review.md).
+
+**How to read the table:** “Fixed in this fork (code)” means the handler / route
+/ RPC logic is corrected here. Exit remains **off by default** for review.
 
 | Flaw | Scope | Status in this fork |
 |------|-------|---------------------|
-| Broker trust / injection | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| EXIT_CAPABLE gate | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
-| Last unmap leaves routes | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Broker trust / injection | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| EXIT_CAPABLE gate | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
+| Last unmap leaves routes | Protocol / client-routing | Fixed in this fork (code) — Exit remains off by default for review |
 | Map / swap / unmap without real API credentials | Local API / Exit controls | Fixed in this fork (code/docs) when API used (API off by default; if on need `auth=`) |
 | IPv6 disable / soft-fail hits all adapters | Windows-specific | Fixed in this fork (code/docs) — TUN-scoped |
-| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Mitigated by Exit-off / auto-routing off; Still open if Exit + auto-routing on |
+| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Fixed in this fork (code) — Exit remains off by default for review |
 
 **Defaults around Exit (not an Exit-on product claim):** packaged client keeps
 `[exit] enable=false` and `auto-routing=false`. Clearnet DNS (`upstream=`) and
 `reachable` stay **off** by default so a normal install does not widen exposure
-beside the Exit switch. Enabling Exit yourself accepts the “Still open if Exit
-enabled” rows above.
+beside the Exit switch. Code fixes above do **not** turn Exit on.
 
 ## Honest non-fixes (what this fork does not claim)
 
@@ -180,8 +180,9 @@ enabled” rows above.
 - **Upstream limits.** Behavior inherited from upstream Session Router still
   applies; this fork hardens defaults and Windows packaging, it does not rewrite
   the whole protocol.
-- **Exit depth.** Serious Exit hardening is unfinished. **This fork keeps Exit
-  off** rather than pretending Exit is finished.
+- **Exit depth.** This branch adds client Exit integrity fixes (see the status
+  table), but Exit stays **off** in the packaged client until review enables it.
+  Do not treat Exit as ready for everyday use.
 - **System VPN / commercial VPN under Session Router** (for example running a
   system-wide VPN beneath this client) is **out of scope for now** — future work,
   not documented as a supported setup here.
@@ -198,8 +199,9 @@ enabled” rows above.
   (`chain3`) for operators who need them.
 - Windows stay-up hardening (drain / IPv6 soft-fail / zstd) aimed at fewer silent
   client drops.
-- Supply chain for the **published artifact**: exe + config/docs only; runtimes
-  from official vendors you can verify.
+- Supply chain for the **published artifact**: statically linked exe + official
+  `wintun.dll` (plus ini / bootstrap / docs); only Wintun is required beside the
+  exe. Verify Wintun from https://www.wintun.net/.
 
 ### Does not protect
 
