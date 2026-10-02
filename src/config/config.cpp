@@ -1643,9 +1643,15 @@ namespace srouter
             if (rest.starts_with("tcp://"))
                 rest.remove_prefix(6);
             // Accept loopback only
-            if (rest.starts_with("127.0.0.1:") || rest.starts_with("127.0.0.1/") || rest == "127.0.0.1")
+            if (rest == "127.0.0.1" || rest.starts_with("127.0.0.1:") || rest.starts_with("127.0.0.1/"))
                 return true;
-            if (rest.starts_with("[::1]:") || rest.starts_with("[::1]/ || rest == "::1")
+            // Bracketed IPv6 loopback: build without a "[::1" string literal for MinGW.
+            if (rest == "::1")
+                return true;
+            static constexpr char v6b[] = {'[', ':', ':', '1', ']', ' '};
+            static constexpr char v6b_colon[] = {'[', ':', ':', '1', ']', ':', ' '};
+            static constexpr char v6b_slash[] = {'[', ':', ':', '1', ']', '/', ' '};
+            if (rest.starts_with(v6b_colon) || rest.starts_with(v6b_slash) || rest == v6b)
                 return true;
             return false;
         }
