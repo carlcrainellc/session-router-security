@@ -6,7 +6,7 @@ from the upstream `dev` branch at SHA
 `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`.
 
 Its identity is **security defaults and Exit honesty**. Windows is the primary
-build and run target in this guide. A stranger should be able to clone or
+build and run target in this guide. A user should be able to clone or
 download, run the Windows client, and understand the risks without
 upstream-project lore or insider context. Opening pull requests against Session Foundation is
 **not** the goal of this repository.
