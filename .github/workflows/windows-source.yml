@@ -3,6 +3,10 @@ name: windows-source
 # MinGW configure and build for the Windows client.
 # Windows runtime fixes live in src/. MinGW dependency fixes are committed on
 # the pinned submodule repos used by this branch.
+#
+# Artifacts contain the exe + config/docs only. Runtime DLLs (Wintun, MinGW
+# libgcc/libstdc++/winpthread) are NOT bundled — obtain them from the official
+# sources documented in docs/RUN-WINDOWS.md.
 
 on:
   workflow_dispatch:
@@ -22,11 +26,11 @@ jobs:
           sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
+      # Submodules used by this tip are public; default GITHUB_TOKEN is enough.
       - name: checkout
         uses: actions/checkout@v5
         with:
           submodules: recursive
-          token: ${{ secrets.SUBMODULES_TOKEN }}
 
       - name: record SHA
         run: |
@@ -61,49 +65,28 @@ jobs:
           mkdir -p artifact
           cp -v build/win32/session-router.exe artifact/
 
-          # MinGW runtime DLLs (posix sysroot)
-          GCCDLL=$(ls /usr/lib/gcc/x86_64-w64-mingw32/*-posix/libgcc_s_seh-1.dll | head -1)
-          STDCPP=$(ls /usr/lib/gcc/x86_64-w64-mingw32/*-posix/libstdc++-6.dll | head -1)
-          PTHREAD=/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll
-          cp -v "$GCCDLL" "$STDCPP" "$PTHREAD" artifact/
-
-          # Official Wintun amd64 (must be exactly 427552 bytes)
-          curl -fsSL -o /tmp/wintun.zip https://www.wintun.net/builds/wintun-0.14.1.zip
-          python3 -c "
-          import zipfile, pathlib, struct, sys
-          z = zipfile.ZipFile('/tmp/wintun.zip')
-          data = z.read('wintun/bin/amd64/wintun.dll')
-          e = struct.unpack_from('<I', data, 0x3C)[0]
-          mach = struct.unpack_from('<H', data, e + 4)[0]
-          assert mach == 0x8664, hex(mach)
-          assert len(data) == 427552, len(data)
-          pathlib.Path('artifact/wintun.dll').write_bytes(data)
-          print(f'wrote artifact/wintun.dll ({len(data)} bytes, amd64)')
-          "
-
-          # Client ini (Exit off) + bootstrap (packaging assemble inputs)
+          # Client ini (Exit off) + bootstrap.signed + run docs
           cp -v contrib/packaging/session-router.ini artifact/session-router.ini
           cp -v .github/packaging/bootstrap.signed artifact/bootstrap.signed
+          cp -v docs/RUN-WINDOWS.md artifact/RUN-WINDOWS.md
+          cp -v docs/windows-client.md artifact/windows-client.md
 
           ls -la artifact/
           x86_64-w64-mingw32-objdump -f artifact/session-router.exe | head -5
 
-          # Hard tests — fail job if any required laptop piece missing/wrong
+          # Hard tests — exe + config only (no DLLs in the published artifact)
           test -f artifact/session-router.exe
-          test -f artifact/libgcc_s_seh-1.dll
-          test -f artifact/libstdc++-6.dll
-          test -f artifact/libwinpthread-1.dll
-          test -f artifact/wintun.dll
-          test "$(wc -c < artifact/wintun.dll)" -eq 427552
           test -f artifact/session-router.ini
           test -f artifact/bootstrap.signed
           test "$(wc -c < artifact/bootstrap.signed)" -eq 434
+          test -f artifact/RUN-WINDOWS.md
+          # Refuse accidental DLL packaging
+          ! ls artifact/*.dll >/dev/null 2>&1
           grep -qE '^enable=false$' artifact/session-router.ini
           grep -qE '^enabled=false$' artifact/session-router.ini
           grep -qE '^auto-routing=false$' artifact/session-router.ini
           grep -q 'ifaddr=10.192.0.1/16' artifact/session-router.ini || grep -q 'ifaddr=' artifact/session-router.ini
-          grep -q 'fd2e:' artifact/session-router.ini || true
-          echo "stage artifact OK"
+          echo "stage artifact OK (exe + config/docs; no DLLs)"
 
       - name: upload artifact
         uses: actions/upload-artifact@v4

@@ -1250,25 +1250,67 @@ namespace srouter
         conf.define_option<std::string>(
             "bootstrap",
             "mode",
+            Default{""},
             Comment{
-                "Bootstrap mode alias: normal (live fetch, default) or local (signed file only,",
-                "no live fetch; refuses start if the signed file is missing). Same effect as",
-                "fetch=true / fetch=false. Prefer one of mode= or fetch=; if both are set, the",
-                "last one processed wins.",
+                "Bootstrap mode: normal (live seed fetch, default), local (signed file only,",
+                "no live fetch; refuses start if the signed file is missing), or chain3",
+                "(query >=3 diverse Oxen-style RPCs, 2-of-3 reconcile, height-lag cap; no live",
+                "publisher fetch). Empty = derive from fetch= (true→normal, false→local).",
+                "Prefer one of mode= or fetch=; if both are set, the last one processed wins.",
             },
             [this](std::string arg) {
                 for (char& c : arg)
-                    if (c >= 'A' && c <= 'Z')
+                    if (c >= 'A' and c <= 'Z')
                         c = static_cast<char>(c - 'A' + 'a');
-                if (arg == "normal")
-                    fetch = true;
-                else if (arg == "local")
-                    fetch = false;
-                else
+                if (not arg.empty() and arg != "normal" and arg != "local" and arg != "chain3")
                     throw std::invalid_argument{
-                        "[bootstrap] mode must be 'normal' or 'local' (got '{}')"_format(arg)};
+                        "[bootstrap] mode= must be normal|local|chain3 (got {})"_format(arg)};
+                mode = std::move(arg);
+                if (mode == "local")
+                    fetch = false;
+                else if (mode == "normal")
+                    fetch = true;
+                else if (mode == "chain3")
+                    fetch = false;  // live publisher fetch off; chain3 builds list from RPCs
+            });
+
+        conf.define_option<std::string>(
+            "bootstrap",
+            "rpc",
+            MultiValue,
+            Comment{
+                "Oxen-style RPC endpoint for mode=chain3 (repeatable). Prefer tcp://host:port.",
+                "Need >=3 diverse hosts (same-operator trio refused).",
+            },
+            [this](std::string arg) {
+                if (arg.empty())
+                    throw std::invalid_argument{"[bootstrap] rpc= cannot be empty"};
+                rpc.push_back(std::move(arg));
+            });
+
+        conf.define_option<uint64_t>(
+            "bootstrap",
+            "height-lag-cap",
+            Default{uint64_t{50}},
+            assignment_acceptor(height_lag_cap),
+            Comment{
+                "mode=chain3: max absolute block-height lag across successful RPC replies.",
             });
     }
+
+    bool BootstrapConfig::is_chain3() const
+    {
+        return mode == "chain3";
+    }
+
+    bool BootstrapConfig::allow_live_fetch() const
+    {
+        // chain3 never does live publisher fetch; it builds from RPCs (+ cold signed file).
+        if (is_chain3())
+            return false;
+        return fetch;
+    }
+
 
     void LoggingConfig::define_config_options(ConfigDefinition& conf)
     {

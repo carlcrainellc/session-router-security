@@ -325,7 +325,7 @@ namespace srouter
             return false;
         });
 
-        if (_router.config().bootstrap.fetch and num_rcs() < MIN_ACTIVE_RCS and not _bootstraps.empty()
+        if (_router.config().bootstrap.allow_live_fetch() and num_rcs() < MIN_ACTIVE_RCS and not _bootstraps.empty()
             and not _bootstrap_running)
         {
             log::warning(logcat, "Purging expired relays resulted in too few RCs; falling back to bootstrap mode");
@@ -710,7 +710,7 @@ namespace srouter
 
         _purge_timer = _router._jq->add_timer(PURGE_INTERVAL, [this] { purge_rcs(); });
 
-        const bool allow_fetch = _router.config().bootstrap.fetch;
+        const bool allow_fetch = _router.config().bootstrap.allow_live_fetch();
         auto need_bootstrap = allow_fetch and num_rcs() < MIN_ACTIVE_RCS;
         if (not has_bootstraps())
         {
@@ -757,7 +757,7 @@ namespace srouter
         if (num_rcs() >= MIN_ACTIVE_RCS)
             return;
 
-        if (not _router.config().bootstrap.fetch)
+        if (not _router.config().bootstrap.allow_live_fetch())
             return;
 
         auto cooldown = std::min(BOOTSTRAP_COOLDOWN * (success ? 1 : _bootstrap_fails), BOOTSTRAP_COOLDOWN_MAX);
@@ -837,7 +837,7 @@ namespace srouter
     void NodeDB::load_bootstraps()
     {
         const auto def = _router.config().router.data_dir / default_bootstrap;
-        const bool allow_fetch = _router.config().bootstrap.fetch;
+        const bool allow_fetch = _router.config().bootstrap.allow_live_fetch();
 
         for (const auto& f : _router.config().bootstrap.files)
         {
@@ -860,8 +860,11 @@ namespace srouter
             }
         }
 
-        if (not allow_fetch and _bootstraps.empty())
+        if (not allow_fetch and _bootstraps.empty() and not _router.config().bootstrap.is_chain3())
             throw std::runtime_error{"[bootstrap] fetch=false (mode=local) requires add-node/bootstrap.signed"};
+        if (not allow_fetch and _bootstraps.empty() and _router.config().bootstrap.is_chain3()
+            and _router.config().bootstrap.rpc.size() < 3)
+            throw std::runtime_error{"[bootstrap] mode=chain3 requires >=3 diverse rpc= seeds"};
 
         auto obsolete = std::erase_if(_bootstraps, [](const auto& bs) { return bs.is_obsolete(); });
         if (obsolete > 0)
@@ -873,33 +876,38 @@ namespace srouter
 
         if (_bootstraps.empty() && (removed > 0 || _router.config().bootstrap.files.empty()))
         {
-            if (not allow_fetch)
+            if (not allow_fetch and not _router.config().bootstrap.is_chain3())
                 throw std::runtime_error{"[bootstrap] fetch=false (mode=local) requires add-node/bootstrap.signed"};
 
-            log::debug(logcat, "Bootstrap list is empty; loading built-in fallbacks");
-            for (const auto& [n, rc_blob] : bootstrap_fallbacks)
+            // mode=chain3: skip built-in fallbacks; chain3_try_reconcile handles quorum / cold file.
+            if (allow_fetch)
             {
-                if (n == _router.netid())
+                log::debug(logcat, "Bootstrap list is empty; loading built-in fallbacks");
+                for (const auto& [n, rc_blob] : bootstrap_fallbacks)
                 {
-                    load_bootstrap(rc_blob, "Fallback bootstrap data");
-                    break;
+                    if (n == _router.netid())
+                    {
+                        load_bootstrap(rc_blob, "Fallback bootstrap data");
+                        break;
+                    }
                 }
-            }
 
-            log::info(
-                logcat,
-                "Loaded {} {} default fallback bootstrap router contact(s)",
-                _bootstraps.size(),
-                _router.netid());
-
-            if (_bootstraps.empty())
-            {
-                log::warning(
+                log::info(
                     logcat,
-                    "No bootstrap router contacts were loaded.  The default bootstrap file {} does not "
-                    "exist, and this Session Router binary does not have any fallback bootstraps for the '{}' network.",
-                    def,
+                    "Loaded {} {} default fallback bootstrap router contact(s)",
+                    _bootstraps.size(),
                     _router.netid());
+
+                if (_bootstraps.empty())
+                {
+                    log::warning(
+                        logcat,
+                        "No bootstrap router contacts were loaded.  The default bootstrap file {} does not "
+                        "exist, and this Session Router binary does not have any fallback bootstraps for the '{}' "
+                        "network.",
+                        def,
+                        _router.netid());
+                }
             }
         }
 
@@ -925,6 +933,11 @@ namespace srouter
                 "bootstrap fetch=false: seeded {} local signed RCs from file (pool now {})",
                 seeded,
                 known_rcs.size());
+        }
+
+        if (_router.config().bootstrap.is_chain3())
+        {
+            chain3_try_reconcile();
         }
 
         log::debug(logcat, "We have {} Bootstrap router(s)!", _bootstraps.size());

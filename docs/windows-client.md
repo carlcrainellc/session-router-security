@@ -1,9 +1,9 @@
-# Windows client (private tip)
+# Windows client
 
-This private repository starts from Session Foundation `session-router` **dev**
-(imported as branch `main` here). It is for Windows client hardening review only.
+This repository starts from Session Foundation `session-router` **dev**
+(imported as branch `main` here). It carries Windows client hardening.
 
-**Do not open PRs from this tip into session-foundation.**
+**Do not open PRs from this tip into session-foundation** until an explicit public flip is named.
 
 ## Upstream pin
 
@@ -26,13 +26,21 @@ If you turn it on:
 
 ## Bootstrap modes
 
-Two modes (no third mode in this tip):
+Three modes:
 
 1. **normal** (default) — `fetch=true` or omit, or `mode=normal`. Uses the signed bootstrap
    file if present, then may fetch a live relay list from the network.
 2. **local** — `fetch=false` or `mode=local`. Uses only the signed bootstrap file in the
    install folder. Does **not** fetch a live list. If that file is missing or empty, Session
    Router refuses to start.
+3. **chain3** — `mode=chain3`. Queries at least three diverse Oxen-style RPC endpoints
+   (`rpc=`, repeatable), reconciles a 2-of-3 service-node view, applies a height-lag cap
+   (`height-lag-cap=`, default 50), and does **not** perform live publisher fetch
+   (`fetch=false` for this path). If RPCs fail and no signed `bootstrap.signed` cold
+   fallback is present, startup is refused. Prefer distinct operators for the three RPCs;
+   a same-operator trio is refused.
+
+Runtime DLLs are **not** shipped with the build artifact. See [RUN-WINDOWS.md](RUN-WINDOWS.md).
 
 
 ## Exit routing warning
@@ -71,7 +79,7 @@ Other people are not invited to connect in to you unless you turn `reachable` on
 
 | Setting | Default |
 |---------|---------|
-| Bootstrap | normal (`fetch=true`); local available |
+| Bootstrap | normal (`fetch=true`); local and chain3 available |
 | Local API | off |
 | Bind | `0.0.0.0` + ephemeral port `0`; fixed port needs `allow-all-interfaces=true` |
 | Clearnet DNS | off (NXDOMAIN for non-.sesh/.snode) |

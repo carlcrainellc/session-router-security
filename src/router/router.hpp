@@ -267,6 +267,9 @@ namespace srouter
 
         const Config& config() const { return _config; }
 
+        // Nullable OMQ (present on full builds when the RPC backend is linked).
+        oxenmq::OxenMQ* omq_nullable() { return _omq.get(); }
+
         ContactDB& contact_db()
         {
             assert(_contact_db);

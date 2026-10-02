@@ -73,6 +73,8 @@ namespace srouter
         static const std::vector<std::pair<NetID, std::string_view>> bootstrap_fallbacks;
         std::vector<RelayContact> _bootstraps;
         void load_bootstraps();
+        // mode=chain3: query >=3 diverse Oxen RPCs, 2-of-3 reconcile, height-lag cap.
+        void chain3_try_reconcile();
         void load_bootstrap(const std::filesystem::path&);
         void load_bootstrap(std::string_view data, std::string_view log_desc);
 

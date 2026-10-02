@@ -260,6 +260,12 @@ endif()
 
 # Link libraries to their internals
 target_link_libraries(session-router-nodedb PUBLIC session-router-addressing session-router-cryptography)
+if(SROUTER_FULL)
+  target_sources(session-router-nodedb PRIVATE nodedb_chain3.cpp)
+  target_link_libraries(session-router-nodedb PRIVATE session-router-base-full)
+else()
+  target_sources(session-router-nodedb PRIVATE nodedb_chain3_stub.cpp)
+endif()
 target_link_libraries(session-router-contact PUBLIC session-router-dns-data)
 if(SROUTER_FULL)
   target_link_libraries(session-router-rpc PUBLIC session-router-contact session-router-conf session-router-base-full)

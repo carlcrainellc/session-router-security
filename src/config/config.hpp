@@ -16,6 +16,7 @@
 #include "util/str.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
@@ -270,9 +271,19 @@ namespace srouter
     {
         std::vector<std::filesystem::path> files;
         // true (mode=normal / omit): live seed fetch. false (mode=local): signed file only.
+        // mode=chain3 also forces fetch=false (no live publisher fetch; list built from RPCs).
         bool fetch = true;
+        // normal | local | chain3. Empty = derive from fetch= (true→normal, false→local).
+        std::string mode;
+        // Oxen-style RPC endpoints for mode=chain3 (need >=3 diverse hosts).
+        std::vector<std::string> rpc;
+        // Max absolute height lag across successful chain3 replies (blocks).
+        uint64_t height_lag_cap = 50;
 
         void define_config_options(ConfigDefinition& conf) override;
+        // Live Foundation publisher fetch allowed? false for local and chain3.
+        bool allow_live_fetch() const;
+        bool is_chain3() const;
     };
 
     struct LoggingConfig : ConfigBase
