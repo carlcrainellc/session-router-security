@@ -44,7 +44,7 @@ miss.
 is **not** the double-click default. See the default-vs-developer table in
 [docs/windows-client.md](docs/windows-client.md).
 
-## Exit routing — status in this fork
+## Security fixes vs Session Foundation
 
 **Exit is not a finished product here.** Packaged clients keep
 `[exit] enable=false` and `auto-routing=false`. Code fixes below do **not** turn
@@ -59,7 +59,7 @@ real credentials, and last-unmap leaving routes installed. This fork fixes those
 in client code and keeps the switch off until Exit is actually ready as a
 product.
 
-### Status table
+### Fixed compared to the Foundation repo
 
 | Flaw | Scope | Status | What we fixed / what remains |
 |------|-------|--------|------------------------------|

@@ -144,7 +144,7 @@ defaults and docs that a default install can walk past — is why this fork trea
 Exit as a documented hazard with the switch left off, not as a finished product
 feature.
 
-### Exit / client-routing flaw status
+### Security fixes vs Session Foundation
 
 **Fixed (code)** means the handler / route / RPC logic is corrected in this fork.
 Packaged Exit stays **off by default**; that is packaging, not an Exit-on product
