@@ -178,25 +178,6 @@ One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-page
 2-of-3, height-lag cap, no live publisher fetch). Details and trust notes:
 [docs/windows-client.md](docs/windows-client.md).
 
-
----
-
-# Session Router
-
-<!-- [Español](readme_es.md) [Русский](readme_ru.md) [Français](readme_fr.md) -->
-
-This is Session Router: the IP packet onion routing network that powers low-latency anonymous IP
-routing.
-
-Session Router is a major component of communications for current and upcoming functionality in
-[Session](https://getsession.org), the anonymous, private messenger.
-
-### Installation instructions can be found [here](docs/install.md).
-
-#### You can learn more about the high level, how to use it and the internals of the protocol [here](docs/readme.md)
-
-[![Build Status](https://ci.oxen.rocks/api/badges/session-foundation/session-router/status.svg?ref=refs/heads/dev)](https://ci.oxen.rocks/session-foundation/session-router)
-
 # License
 
 This program is free software: you can redistribute it and/or modify
