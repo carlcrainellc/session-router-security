@@ -1,3 +1,15 @@
+# Session Router — private Windows client tip
+
+**Private repository** for Windows client hardening review.
+
+- Upstream: [session-foundation/session-router](https://github.com/session-foundation/session-router) branch `dev`
+- Imported tip SHA: `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`
+- Client notes: [docs/windows-client.md](docs/windows-client.md)
+
+Do **not** open PRs from this repository into Session Foundation.
+
+---
+
 # Session Router
 
 <!-- [Español](readme_es.md) [Русский](readme_ru.md) [Français](readme_fr.md) -->
