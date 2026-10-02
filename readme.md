@@ -82,7 +82,7 @@ Full write-up: [docs/windows-client.md](docs/windows-client.md).
 
 ## Bind lesson: all-interfaces ephemeral vs “bind loopback”
 
-Upstream packaging and docs left a mess that civilians should not have to
+Upstream packaging and docs left a mess that everyday users should not have to
 decode.
 
 **What actually happens:** the client UDP/QUIC socket binds **all interfaces**

@@ -100,7 +100,7 @@ Two different problems got tangled together:
    than most desktop users intend, and easy to misread as “the one VPN port.”
 2. **“Just bind loopback”** — a tempting-sounding mitigation that is simply
    wrong for QUIC. Ephemeral-port-on-`0.0.0.0` is not the same thing as
-   localhost-only. Treating them as synonyms left civilians either exposed or
+   localhost-only. Treating them as synonyms left users either exposed or
    broken depending on which bad advice they followed.
 
 ### What this fork changed
@@ -140,7 +140,7 @@ routing **off**. Do not turn these on for everyday use.
 
 Upstream left Exit available as a configuration surface without shipping an
 equally serious account of what still fails when it is enabled. That gap —
-defaults and docs that a civilian can walk past — is why this fork treats Exit
+defaults and docs that a default install can walk past — is why this fork treats Exit
 as a documented hazard with the switch left off, not as a finished product
 feature.
 
