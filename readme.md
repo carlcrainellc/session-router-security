@@ -32,22 +32,28 @@ Donate (Ethereum): `0x2d81bfecee48de4cf49fddcc9f279970335fe298`
 
 Donate (SESH token on Arbitrum / EVM): `0x8bc20aBA70685634269d1803E7aCC752d985aa44`
 
-## What the default build already locks
+## Safer defaults in this security fork
 
-| Lock | Default |
-|------|---------|
-| Bootstrap | `normal` (live fetch allowed); `local` and `chain3` available as advanced modes |
-| Local control API | **off** (loopback/IPC + `auth=` required if enabled) |
-| QUIC bind | all interfaces + ephemeral port `0` (see bind lesson below) |
-| Clearnet DNS | **off** (NXDOMAIN for non-`.sesh` / `.snode`) |
-| Reachable | **false** |
-| Exit | **off** (`enable=false`) |
-| Auto exit routing | **off** (`auto-routing=false`) |
-| Windows stay-up | drain timer, TUN-scoped IPv6 soft-fail, libzstd linked |
-| Published artifact | **static exe + official `wintun.dll`** (plus ini / bootstrap / docs); no MinGW runtime DLLs |
+These are the packaged defaults for **this** repository
+(`session-router-security`), not Session Foundation’s main client. A normal
+download or default Windows build from this fork starts with the settings below.
 
-`mode=chain3` is an **operator** path (diverse `rpc=` seeds, 2-of-3 reconcile). It
-is **not** the double-click default. See the default-vs-developer table in
+| Setting | This fork’s default build |
+|---------|---------------------------|
+| Bootstrap (how the client finds the network) | `normal` — live fetch allowed; `local` and `chain3` exist as advanced choices |
+| Local control API | **Off**. If you turn it on, it is limited to this machine and needs matching `auth=` |
+| Network listen (QUIC) | All interfaces, with an ephemeral port (`0`) — see the bind lesson below |
+| Clearnet DNS (non-`.sesh` / `.snode` names) | **Off** (those names get NXDOMAIN) |
+| Reachable (advertise as a public relay) | **False** |
+| Exit | **Off** (`enable=false`) |
+| Auto Exit routing | **Off** (`auto-routing=false`) |
+| Windows stay-up helpers | Drain timer, IPv6 soft-fail limited to the Session Router tunnel adapter, libzstd linked |
+| What we publish | **Static exe + official `wintun.dll`** (plus ini / bootstrap / docs); no MinGW runtime DLLs in the package |
+
+`mode=chain3` is an **advanced / operator** path: it uses several diverse `rpc=`
+seeds and a 2-of-3 reconcile. It is **not** the double-click default today, it
+is **not fully tested yet**, and it is **expected to become the default in a
+later release**. For a longer defaults comparison, see
 [docs/windows-client.md](docs/windows-client.md).
 
 ## Security fixes vs Session Foundation
