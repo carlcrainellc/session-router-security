@@ -11,7 +11,9 @@ namespace srouter::win32
 
     void VPNPlatform::make_route(std::string ip, std::string gw, std::string cmd)
     {
-        srouter::win32::Exec(
+        // Check exit codes (ADD failures are logged by ExecChecked).  Caller (put_up)
+        // fail-closes when the pin map stays empty.
+        (void)srouter::win32::ExecChecked(
             "route.exe", fmt::format("{} {} MASK 255.255.255.255 {} METRIC {}", cmd, ip, gw, m_Metric));
     }
 
@@ -29,11 +31,15 @@ namespace srouter::win32
         const auto& info = vpn.interface_info();
         if (info.addrs.empty())
             throw std::runtime_error{"win32 route_via_interface: interface has no addresses"};
-        auto ifaddr = std::visit([](const auto& a) { return a.ip.to_string(); }, info.addrs[0]);
-        // this changes the last 1 to a 0 so that it routes over the interface
-        // this is required because windows is idiotic af
-        ifaddr.back()--;
-        srouter::win32::Exec("route.exe", fmt::format("{} {} MASK {} {} METRIC {}", cmd, addr, mask, ifaddr, m_Metric));
+        // Next hop: IPv4 network address of the TUN (ip.to_base(mask)), not "last char--".
+        // The old last-char trick only worked when the TUN address ended in .1.
+        std::string nexthop;
+        if (const auto* n4 = std::get_if<ipv4_net>(&info.addrs[0]))
+            nexthop = n4->ip.to_base(n4->mask).to_string();
+        else
+            nexthop = std::visit([](const auto& a) { return a.ip.to_string(); }, info.addrs[0]);
+        (void)srouter::win32::ExecChecked(
+            "route.exe", fmt::format("{} {} MASK {} {} METRIC {}", cmd, addr, mask, nexthop, m_Metric));
     }
 
     namespace
@@ -164,22 +170,34 @@ namespace srouter::win32
 
     void VPNPlatform::add_default_route_via_interface(NetworkInterface& vpn)
     {
-        // kill ipv6
-        srouter::win32::Exec(
-            "WindowsPowerShell\\v1.0\\powershell.exe",
-            "-Command (Disable-NetAdapterBinding -Name \"* \" -ComponentID ms_tcpip6)");
+        // Scope IPv6 disable to this TUN adapter only — never Disable-NetAdapterBinding -Name "*".
+        const auto& ifname = vpn.interface_info().ifname;
+        if (not ifname.empty())
+        {
+            srouter::win32::Exec(
+                "WindowsPowerShell\\v1.0\\powershell.exe",
+                fmt::format(
+                    "-Command (Disable-NetAdapterBinding -Name \"{}\" -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue)",
+                    ifname));
+        }
 
         default_route_via_interface(vpn, "ADD");
     }
 
     void VPNPlatform::delete_default_route_via_interface(NetworkInterface& vpn)
     {
-        // restore ipv6
-        srouter::win32::Exec(
-            "WindowsPowerShell\\v1.0\\powershell.exe",
-            "-Command (Enable-NetAdapterBinding -Name \"* \" -ComponentID ms_tcpip6)");
-
         default_route_via_interface(vpn, "DELETE");
+
+        // Restore IPv6 on this TUN adapter only (paired with scoped disable above).
+        const auto& ifname = vpn.interface_info().ifname;
+        if (not ifname.empty())
+        {
+            srouter::win32::Exec(
+                "WindowsPowerShell\\v1.0\\powershell.exe",
+                fmt::format(
+                    "-Command (Enable-NetAdapterBinding -Name \"{}\" -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue)",
+                    ifname));
+        }
     }
 
     std::shared_ptr<NetworkInterface> VPNPlatform::obtain_interface(InterfaceInfo info, Router* router)

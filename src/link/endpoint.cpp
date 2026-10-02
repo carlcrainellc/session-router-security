@@ -303,10 +303,38 @@ namespace srouter::link
         if (manager.is_stopping)
             return;
 
-        for (const auto& [rid, relay] : relay_conns)
+        // Relays store peer links in relay_conns; clients store edge links in client_conns.
+        // RoutePoker (and gossip) need both — otherwise client tips poke zero host routes
+        // before default-via-TUN and blackhole their own edge traffic.
+        if (router.is_service_node)
         {
-            assert(relay.conn);
-            func(rid, *relay.conn);
+            for (const auto& [rid, relay] : relay_conns)
+            {
+                assert(relay.conn);
+                func(rid, *relay.conn);
+            }
+        }
+        else
+        {
+            for (const auto& [rid, conn] : client_conns)
+            {
+                assert(conn && conn->conn);
+                func(rid, *conn);
+            }
+        }
+    }
+
+    void Endpoint::for_each_pending_outbound(std::function<void(const RouterID&, link::Connection&)> func) const
+    {
+        assert(router.loop().inside());
+
+        if (manager.is_stopping)
+            return;
+
+        for (const auto& [rid, conn] : pending_outbound)
+        {
+            if (conn and conn->conn)
+                func(rid, *conn);
         }
     }
 
@@ -477,6 +505,10 @@ namespace srouter::link
         if (!pending)
         {
             log::debug(logcat, "Initiating new connection to send to {}", rid.short_string());
+            // If default is via TUN, ensure a host route to this relay exists first.
+            router.poke_first_hop(rc.addr());
+            if (rc.addr6())
+                router.poke_first_hop(*rc.addr6());
             auto conn = endpoint->connect(
                 quic::RemoteAddress{rid.to_view(), rc.addr()},
                 tls_creds,

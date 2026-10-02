@@ -45,8 +45,12 @@ namespace srouter
         /// set dns resolver
         /// pass in if we are using exit node mode right now  as a bool
         // void set_dns_mode(bool using_exit_mode) const;
+        // NOTE: without set_dns_mode, OS on-link DNS resolvers can leak outside the tunnel
+        // when a default route via TUN is up. Document for operators; wire later if needed.
 
         bool enabled() const { return _enabled; }
+        bool is_up() const { return _up; }
+        void set_enabled(bool v) { _enabled = v; }
 
       private:
         void update();

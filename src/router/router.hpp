@@ -160,6 +160,8 @@ namespace srouter
         std::shared_ptr<dns::Listener> _dns;
         std::shared_ptr<vpn::Platform> _vpn;
         std::shared_ptr<RoutePoker> _route_poker;
+        std::function<void(const ipv4&)> _first_hop_poke_v4;
+        std::function<void(const ipv6&)> _first_hop_poke_v6;
 
         std::promise<void> _close_promise;
 
@@ -270,6 +272,10 @@ namespace srouter
         // Nullable OMQ (present on full builds when the RPC backend is linked).
         oxenmq::OxenMQ* omq_nullable() { return _omq.get(); }
 
+        // Runtime MapExit / unmap_exit mutate reserved-range mappings.
+        auto& mutable_exit_ranges() { return _config.exit.ranges; }
+        const auto& exit_ranges() const { return _config.exit.ranges; }
+
         ContactDB& contact_db()
         {
             assert(_contact_db);
@@ -329,8 +335,14 @@ namespace srouter
 
         bool looks_alive() const { return steady_now_ms() - _last_tick <= 30s; }
 
-        // RoutePoker& route_poker() { return *_route_poker; }
-        // const RoutePoker& route_poker() const { return *_route_poker; }
+        RoutePoker* route_poker() { return _route_poker.get(); }
+        const RoutePoker* route_poker() const { return _route_poker.get(); }
+        void set_route_poker(std::shared_ptr<RoutePoker> p) { _route_poker = std::move(p); }
+
+        // Full platform (TunEndpoint) registers these so core link code can request a host
+        // route to a relay first hop without linking RoutePoker into session-router-core.
+        void set_first_hop_poker(std::function<void(const ipv4&)> v4, std::function<void(const ipv6&)> v6);
+        void poke_first_hop(const quic::Address& addr);
 
         std::string status_line();
 

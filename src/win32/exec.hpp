@@ -44,4 +44,7 @@ namespace srouter::win32
     /// simple wrapper to run a single command in a blocking way
     void Exec(std::string exe, std::string args);
 
+    /// Like Exec, but returns false when the process exit code is non-zero.
+    bool ExecChecked(std::string exe, std::string args);
+
 }  // namespace srouter::win32
