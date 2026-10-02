@@ -112,7 +112,7 @@ addresses at whatever port the OS assigns.
 
 Point: upstream left packaging and wording that either exposed a fixed
 all-interfaces port or taught the wrong mitigation. This fork locks the safer
-default and says the quiet part out loud.
+default and documents the remaining risks in the open.
 
 ## Honest limits
 
