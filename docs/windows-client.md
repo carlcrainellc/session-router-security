@@ -47,3 +47,11 @@ The packaged client does **not** open fixed port 1191 on every network card.
 
 By default it uses a temporary port. Do not set `listen=:1191` unless you know you need
 it and you set `allow-all-interfaces=true` on purpose.
+
+## Clearnet DNS
+
+By default this client does **not** look up normal internet names (anything that is not
+`.sesh` or `.snode`) using your real IP.
+
+Those lookups get NXDOMAIN until you deliberately set an upstream DNS server in the
+config. Session names (`.sesh` / `.snode`) still work through Session Router.

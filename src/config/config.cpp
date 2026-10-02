@@ -928,14 +928,12 @@ namespace srouter
             "upstream",
             FullClientOnly,
             MultiValue,
-            std::array{
-                Default{"9.9.9.9"}, Default{"149.112.112.112"}, Default{"[2620:fe::fe]"}, Default{"[2620:fe::9]"}},
             Comment{
                 "Upstream resolver(s) to use as fallback for non-Session Router addresses.",
-                "Multiple values accepted.  Can be set to empty to disable upstream DNS resolution",
-                "for advanced setups.",
+                "Multiple values accepted.  Can be set to empty to disable upstream DNS resolution.",
                 "",
-                "If not specified, the default is to use Quad9 public DNS servers (https://quad9.net).",
+                "Default for this client tip: no upstream resolvers. Non-.sesh / non-.snode names",
+                "are refused until a safe path is configured (set upstream= explicitly if needed).",
             },
             [this](const std::string& arg) {
                 if (not arg.empty())

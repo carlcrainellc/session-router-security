@@ -574,8 +574,10 @@ namespace srouter::dns
         if (!_unbound)
         {
             log::warning(
-                logcat, "DNS request received for non-Session Router domain, but no upstream DNS is configured!");
-            reply(m.refused().encode(tcp));
+                logcat,
+                "DNS request for non-Session Router domain refused (no upstream DNS; clearnet resolve off by default)");
+            // Fail closed: do not resolve clearnet names from the real IP until a safe path is set.
+            reply(m.nxdomain().encode(tcp));
             return;
         }
 
