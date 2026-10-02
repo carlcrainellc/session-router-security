@@ -1645,12 +1645,12 @@ namespace srouter
             // Accept loopback only
             if (rest == "127.0.0.1" || rest.starts_with("127.0.0.1:") || rest.starts_with("127.0.0.1/"))
                 return true;
-            // Bracketed IPv6 loopback: build without a "[::1" string literal for MinGW.
             if (rest == "::1")
                 return true;
-            static constexpr char v6b[] = {'[', ':', ':', '1', ']', ' '};
-            static constexpr char v6b_colon[] = {'[', ':', ':', '1', ']', ':', ' '};
-            static constexpr char v6b_slash[] = {'[', ':', ':', '1', ']', '/', ' '};
+            // Bracketed IPv6 loopback without "[::1" string literals (MinGW-safe).
+            static constexpr char v6b[] = {'[', ':', ':', '1', ']', 0};
+            static constexpr char v6b_colon[] = {'[', ':', ':', '1', ']', ':', 0};
+            static constexpr char v6b_slash[] = {'[', ':', ':', '1', ']', '/', 0};
             if (rest.starts_with(v6b_colon) || rest.starts_with(v6b_slash) || rest == v6b)
                 return true;
             return false;
