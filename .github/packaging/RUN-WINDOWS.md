@@ -1,5 +1,7 @@
 # Windows package — run steps
 
+Release zip: statically linked `session-router.exe` + official `wintun.dll` only (no MinGW runtime DLLs required). Full guide: [docs/RUN-WINDOWS.md](../../docs/RUN-WINDOWS.md).
+
 1. Keep Exit disabled in the client config (`enable=false` under `[exit]`).
 2. Start `session-router.exe`. The tunnel adapter `sr-tun0` appears after a few seconds.
 3. **Required for `.sesh` names:** set tunnel DNS to the local Session Router

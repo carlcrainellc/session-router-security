@@ -128,8 +128,8 @@ default and says the quiet part out loud.
 
 **Improves:** safer defaults (API / DNS / reachable / Exit off), honest bind
 docs and fixed-port refusal, optional `local` / `chain3` bootstrap for
-operators, Windows stay-up fixes, artifact supply chain that does not ship
-third-party DLLs.
+operators, Windows stay-up fixes, and a release package that ships only official Wintun
+as a third-party DLL (exe is statically linked for MinGW runtimes).
 
 **Does not protect against:** a replaced `bootstrap.signed`, first-hop path
 visibility, OS/malware compromise, unofficial DLLs beside the exe, or “full
@@ -139,14 +139,14 @@ One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-page
 
 ## Supply chain & authenticity
 
-- Artifacts: `session-router.exe`, `session-router.ini`, `bootstrap.signed`, docs —
-  **no DLLs**.
-- Wintun: https://www.wintun.net/ — amd64 `wintun.dll`, expected size **427552** bytes.
-- MinGW runtimes: official mingw-w64 / MSYS2 POSIX sysroot only (see
-  [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)).
-- Match CI artifact name `session-router-windows-source-<SHA>` to the git commit;
-  keep a local hash of the exe with that SHA. Treat `bootstrap.signed` as a trust
-  root.
+- Release zip: statically linked `session-router.exe` + official `wintun.dll`
+  (and ini / bootstrap / docs). **Only Wintun is required** beside the exe;
+  MinGW C++/runtime DLLs are not needed for that package.
+- Wintun: https://www.wintun.net/ — amd64 `wintun.dll`, expected size **427552** bytes
+  (also listed with hashes in the zip’s DEPENDENCIES.txt).
+- Match the release tip SHA / CI artifact name to the git commit; keep a local
+  hash of the exe with that SHA. Treat `bootstrap.signed` as a trust root.
+  Details: [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md).
 
 ## Bootstrap modes
 

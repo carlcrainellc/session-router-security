@@ -1,23 +1,27 @@
 # Running the Windows client
 
-This document describes how to run a MinGW-built `session-router.exe` on Windows.
-Published build artifacts include the **executable and config/docs only**. They do
-**not** ship runtime DLLs. Obtain those from the official sources below.
+This document describes how to run the MinGW-built Windows client package.
 
-## What the artifact contains
+The **v0.1.0 release zip** ships a **statically linked** `session-router.exe`
+plus official **`wintun.dll`**. MinGW C++/runtime DLLs are **not** required for
+that package (they are linked into the exe). Do not fetch MinGW runtimes from
+an Ubuntu sysroot for the release zip.
 
-- `session-router.exe` — the client binary
+## What the release zip contains
+
+- `session-router.exe` — statically linked client binary
+- `wintun.dll` — official Wintun amd64 (see DEPENDENCIES.txt in the zip)
 - `session-router.ini` — packaged defaults (Exit off; see warnings in the README)
 - `bootstrap.signed` — signed bootstrap relay contacts
-- `RUN-WINDOWS.md` / `windows-client.md` — this guide and client notes
+- `RUN-WINDOWS.md` / `windows-client.md` / `tunnel-dns-preflight.ps1` — run docs
+- `DEPENDENCIES.txt` — URLs and hashes for third-party binaries included
 
-## Runtime dependencies (official sources only)
+## Runtime dependency
 
-Place the DLLs next to `session-router.exe` (or elsewhere on `PATH`).
+**Only `wintun.dll` is required** next to the exe (already included in the
+release zip).
 
-### 1. Wintun (required for the TUN adapter)
-
-- Official download: https://www.wintun.net/builds/wintun-0.14.1.zip
+- Official download (if you replace it): https://www.wintun.net/builds/wintun-0.14.1.zip
 - Project page: https://www.wintun.net/
 - Extract **`wintun/bin/amd64/wintun.dll`** for 64-bit Windows.
 - Expected size: **427552** bytes.
@@ -30,44 +34,19 @@ Example verification (PowerShell):
 (Get-Item .\wintun.dll).Length   # expect 427552
 ```
 
-### 2. MinGW-w64 C++ runtime (required)
-
-The client is cross-built with the **MinGW-w64 POSIX** toolchain. You need these
-three DLLs from a matching MinGW-w64 POSIX sysroot (same major GCC series as the
-build, currently GCC 14 posix on the reference Ubuntu 22.04 CI image):
-
-| File | Role |
-|------|------|
-| `libgcc_s_seh-1.dll` | GCC runtime |
-| `libstdc++-6.dll` | C++ standard library |
-| `libwinpthread-1.dll` | POSIX threads for winpthread |
-
-**Official channels** (pick one; do not copy DLLs from unrelated third-party zips):
-
-1. **Debian / Ubuntu `mingw-w64` packages** (same family as CI):
-   - Packages: `g++-mingw-w64-x86-64-posix`, `mingw-w64-x86-64-dev`
-   - Typical paths on the build host:
-     - `/usr/lib/gcc/x86_64-w64-mingw32/*-posix/libgcc_s_seh-1.dll`
-     - `/usr/lib/gcc/x86_64-w64-mingw32/*-posix/libstdc++-6.dll`
-     - `/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll`
-2. **MSYS2 mingw-w64** — https://www.msys2.org/ — install the UCRT64 or
-   MINGW64 POSIX-compatible toolchain and take the three DLLs from that
-   environment’s `bin` directory. Prefer a GCC major version that matches the
-   binary’s build notes.
-
-Always prefer the toolchain that produced the binary (or the documented CI
-image) so C++ ABI matches.
+If you build from source yourself and produce a **dynamically** linked binary,
+you would need matching MinGW-w64 POSIX runtimes from the same toolchain that
+built the exe. That path is **not** what the v0.1.0 release zip ships.
 
 ## Quick start
 
-1. Unpack the artifact into a folder.
-2. Add `wintun.dll` and the three MinGW runtime DLLs (see above).
-3. Keep `session-router.ini` and `bootstrap.signed` beside the exe (or set paths
+1. Unpack the release zip into a folder (`session-router.exe` and `wintun.dll`
+   should be side by side).
+2. Keep `session-router.ini` and `bootstrap.signed` beside the exe (or set paths
    in the ini).
-4. Run `session-router.exe` as Administrator if the TUN driver requires it.
-5. **Set tunnel DNS** (required for `.sesh`): see [Tunnel DNS](#tunnel-dns-required-for-sesh) below.
-6. Leave Exit **off** unless you understand the risks in the README.
-
+3. Run `session-router.exe` as Administrator if the TUN driver requires it.
+4. **Set tunnel DNS** (required for `.sesh`): see [Tunnel DNS](#tunnel-dns-required-for-sesh) below.
+5. Leave Exit **off** unless you understand the risks in the README.
 
 ## Tunnel DNS (required for `.sesh`)
 
@@ -86,8 +65,7 @@ Optional helper (waits for `sr-tun0`, sets DNS, prints current DNS):
 powershell -ExecutionPolicy Bypass -File tunnel-dns-preflight.ps1
 ```
 
-(`tunnel-dns-preflight.ps1` ships beside `RUN-WINDOWS.md` in the packaging folder
-and in the Windows client release zip.)
+(`tunnel-dns-preflight.ps1` ships in the release zip beside `RUN-WINDOWS.md`.)
 
 Verify:
 
@@ -107,15 +85,13 @@ See [windows-client.md](windows-client.md). Defaults use **normal** mode. Option
 ## Exit routing
 
 Exit stays **disabled** in the packaged ini (`enable=false`, `auto-routing=false`).
-Do not enable it for everyday use. See the README “Exit security flaws” section.
-
+Do not enable it for everyday use. See the README Exit status table.
 
 ## Authenticity checklist
 
-1. Confirm the git commit SHA you intended (artifact folder name includes it).
+1. Confirm the git commit SHA you intended (release notes name the tip SHA).
 2. Hash `session-router.exe` locally and keep that hash with the SHA.
-3. Confirm `wintun.dll` is **427552** bytes and amd64 from the official Wintun zip.
-4. Take MinGW DLLs only from the official toolchain that matches this build’s GCC
-   major (reference CI: Ubuntu `mingw-w64` POSIX / GCC 14).
-5. Confirm packaged `session-router.ini` still has `enable=false` and
+3. Confirm `wintun.dll` is **427552** bytes and amd64 from the official Wintun zip
+   (or the copy shipped in the release zip — see DEPENDENCIES.txt).
+4. Confirm packaged `session-router.ini` still has `enable=false` and
    `auto-routing=false` unless you knowingly changed them.

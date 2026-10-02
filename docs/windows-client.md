@@ -32,7 +32,7 @@ Plain-language summary of packaged defaults. Details follow in later sections.
 | **Auto exit routing** | **off** (`auto-routing=false`) | No automatic “send my internet via Exit”. |
 | **Windows stay-up** | drain timer, IPv6 soft-fail scoped to TUN, libzstd linked | Reduces common MinGW/Windows drop and IPv6 foot-guns. |
 
-Also see [RUN-WINDOWS.md](RUN-WINDOWS.md) for runtime DLLs (**not** bundled) and the **required** tunnel DNS step for `.sesh` names (`netsh ... sr-tun0 ... 127.0.0.1`, or `tunnel-dns-preflight.ps1`).
+Also see [RUN-WINDOWS.md](RUN-WINDOWS.md): the release zip is a **static exe + official `wintun.dll` only** (no MinGW runtime DLLs required), plus the **required** tunnel DNS step for `.sesh` names (`netsh ... sr-tun0 ... 127.0.0.1`, or `tunnel-dns-preflight.ps1`).
 
 ## Default vs developer / advanced paths
 
@@ -231,19 +231,22 @@ When you care about provenance:
    commit. Match the SHA in the artifact name to the commit you intend.
 3. **Binary** — after download, record a hash locally (for example
    `Get-FileHash session-router.exe` on Windows) and keep it with the commit SHA.
-4. **Runtimes** — verify Wintun size/PE machine type and take MinGW DLLs from the
-   official toolchain that matches the build (see [RUN-WINDOWS.md](RUN-WINDOWS.md)).
-   Do not mix random DLLs from third-party “all-in-one” zips.
+4. **Runtimes** — the release zip includes official Wintun only. Verify
+   `wintun.dll` size/PE machine type (427552 bytes, amd64). The packaged exe is
+   statically linked for MinGW C++/runtime — do not add random MinGW DLLs from
+   third-party zips. See [RUN-WINDOWS.md](RUN-WINDOWS.md).
 
-## Supply chain: no bundled DLLs
+## Supply chain: static exe + official Wintun
 
-Published artifacts intentionally **omit** `.dll` files. Obtain:
+The **v0.1.0 release zip** ships:
 
-- **Wintun** from https://www.wintun.net/ (amd64 DLL, expected **427552** bytes)
-- **MinGW-w64 POSIX** `libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll`
-  from official mingw-w64 / distro packages or MSYS2
+- Statically linked `session-router.exe` (MinGW C++/runtime linked in — **no**
+  `libgcc` / `libstdc++` / `libwinpthread` DLLs required)
+- Official **Wintun** `wintun.dll` from https://www.wintun.net/ (amd64, expected
+  **427552** bytes; hashes in DEPENDENCIES.txt)
 
-Full steps: [RUN-WINDOWS.md](RUN-WINDOWS.md).
+CI “source” artifacts that omit DLLs still need you to add official Wintun
+yourself. Full steps: [RUN-WINDOWS.md](RUN-WINDOWS.md).
 
 ## Defaults summary (quick table)
 
@@ -256,4 +259,4 @@ Full steps: [RUN-WINDOWS.md](RUN-WINDOWS.md).
 | Reachable | false |
 | Exit | off |
 | Auto exit routing | off |
-| Artifact DLLs | none (official sources only) |
+| Artifact DLLs | release zip: official Wintun only (static exe) |
