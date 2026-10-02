@@ -61,19 +61,19 @@ product.
 
 ### Status table
 
-| Flaw | Scope | Status |
-|------|-------|--------|
-| Broker trust / injection (only mapped Exit injects return traffic) | Protocol / client-routing | **Fixed (code)** |
-| Clearnet via Exit before `EXIT_CAPABLE` | Protocol / client-routing | **Fixed (code)** |
-| Fail-closed route bring-up (missing gateway / host pins) | Protocol / client-routing | **Fixed (code)** |
-| Empty ranges / bare `0.0.0.0/0` / `::/0` without `full_tunnel` | Protocol / client-routing | **Fixed (code)** |
-| `[exit] enable` + empty policy behaves as allow-all | Protocol / client-routing | **Fixed (code)** |
-| Last unmap leaves routes up | Protocol / client-routing | **Fixed (code)** |
-| Map / swap / unmap without real API credentials | Local API / Exit controls | **Fixed (code)** — API off by default; if enabled, matching `[api] auth=` required |
-| IPv6 disable / soft-fail hits all adapters | Windows-specific | **Fixed (code)** — TUN-scoped |
-| Bad Win32 default next-hop via tunnel | Windows-specific + Exit path | **Fixed (code)** |
-| OMQ vs packet-path data race on live Exit ranges | Protocol / client-routing | **Still open** |
-| DNS on-link leak (`set_dns_mode` not wired) | Protocol / client-routing | **Still open** |
+| Flaw | Scope | Status | What we fixed / what remains |
+|------|-------|--------|------------------------------|
+| Broker trust / injection | Protocol / client-routing | **Fixed (code)** | Only a mapped Exit may inject return traffic; an arbitrary Exit-policy peer is not treated as a broker. |
+| Clearnet via Exit before `EXIT_CAPABLE` | Protocol / client-routing | **Fixed (code)** | Outbound clearnet via Exit waits until the mapped session is Exit-capable. |
+| Fail-closed route bring-up | Protocol / client-routing | **Fixed (code)** | Default-via-TUN is refused when there is no real non-TUN gateway or host pins. |
+| Empty ranges / bare `0.0.0.0/0` / `::/0` | Protocol / client-routing | **Fixed (code)** | Empty or bare full-tunnel maps require an explicit `full_tunnel` acknowledgement. |
+| `[exit] enable` + empty policy | Protocol / client-routing | **Fixed (code)** | Enable with an empty policy refuses startup instead of acting as allow-all. |
+| Last unmap leaves routes up | Protocol / client-routing | **Fixed (code)** | Unmapping the last Exit ranges tears the poked routes down. |
+| Map / swap / unmap without API credentials | Local API / Exit controls | **Fixed (code)** | Privileged Exit RPCs need matching `[api] auth=` when the API is on (API stays off by default). |
+| IPv6 disable / soft-fail hits all adapters | Windows-specific | **Fixed (code)** | IPv6 soft-fail / disable is scoped to the Session Router TUN adapter only. |
+| Bad Win32 default next-hop via tunnel | Windows-specific + Exit path | **Fixed (code)** | Win32 default route uses the TUN network address as next hop, with route install checks. |
+| OMQ vs packet-path data race on live Exit ranges | Protocol / client-routing | **Still open** | Map/unmap runs on the job queue, but the packet path can still read live ranges without a shared lock. |
+| DNS on-link leak (`set_dns_mode` not wired) | Protocol / client-routing | **Still open** | On-link DNS mode is still not wired; DNS can leak onto the wrong path when Exit is on. |
 
 Packaged Exit stays **off by default**. That is deliberate packaging, not a claim
 that Exit-on is finished. Rows marked **Fixed (code)** are corrected in this
