@@ -45,9 +45,8 @@ ExternalProject_Add(libzmq_external
     PREFIX ${LIBZMQ_PREFIX}
     URL ${LIBZMQ_URL}
     URL_HASH ${LIBZMQ_HASH}
-    # MinGW cross: disable IPC entirely. Even when afunix.h is detected, MinGW
-    # still compiles the Unix sys/socket.h branch in ipc_address.hpp.
-    PATCH_COMMAND bash -c "sed -i -e 's/set(ZMQ_HAVE_IPC 1)/set(ZMQ_HAVE_IPC 0)/' -e '/check_include_files(\"winsock2.h;afunix.h\" ZMQ_HAVE_IPC)/a\\  set(ZMQ_HAVE_IPC OFF)' CMakeLists.txt"
+    # MinGW cross: disable IPC (script under session-router contrib/mingw).
+    PATCH_COMMAND bash "${CMAKE_SOURCE_DIR}/contrib/mingw/patch-libzmq-no-ipc.sh" <SOURCE_DIR>/CMakeLists.txt
     CMAKE_ARGS ${libzmq_compiler_args}
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
