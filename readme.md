@@ -20,6 +20,7 @@ defaults and documentation so they are harder to miss.
 
 - **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
 - **How to run (runtimes):** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
+- **Tunnel DNS (required for `.sesh`):** after start, `netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no` — see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md#tunnel-dns-required-for-sesh) and packaging `tunnel-dns-preflight.ps1`
 
 ## What the default build already locks
 
@@ -51,66 +52,31 @@ it is turned on. This fork keeps Exit **off** in the packaged client
 
 Do **not** turn Exit on for everyday browsing.
 
-### Flaws found
+### Exit / client-routing flaw status
 
-These are concrete failure classes — not vibes. Most are **protocol /
-client-routing** issues that any platform inherits if Exit is enabled. A smaller
-set is **Windows-specific**.
+**Skimmer note:** rows below are *not* automatically “unfixed in the default
+build.” Several serious items are **mitigated by Exit (and auto-routing) staying
+off**. “Still open if Exit enabled” means the underlying protocol / client issue
+remains if an operator turns Exit on — it does **not** mean the shipped default
+exposes that path.
 
-**Protocol / client-routing (not Windows-only):**
+| Flaw | Scope | Status in this fork |
+|------|-------|---------------------|
+| Broker trust / injection | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| EXIT_CAPABLE gate | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Fail-closed bring-up (missing gateway / host pins) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Empty ranges / bare `0.0.0.0/0` / `::/0` (full tunnel) | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| `enable` + empty policy behaves as allow-all | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Last unmap leaves routes | Protocol / client-routing | Mitigated by Exit-off (and/or auto-routing off); Still open if Exit enabled |
+| Map / swap / unmap without real API credentials | Local API / Exit controls | Fixed in this fork (code/docs) when API used (API off by default; if on need `auth=`) |
+| IPv6 disable / soft-fail hits all adapters | Windows-specific | Fixed in this fork (code/docs) — TUN-scoped |
+| Bad Win32 gateway / next-hop | Windows-specific + Exit path | Mitigated by Exit-off / auto-routing off; Still open if Exit + auto-routing on |
 
-- **Exit broker trust / injection** — traffic can be steered toward an exit that
-  was never explicitly mapped; only a mapped exit should be treated as the exit
-  broker.
-- **EXIT_CAPABLE gate** — clearnet via Exit can proceed before the mapped peer is
-  known to be exit-capable.
-- **Route bring-up that is not fail-closed** — missing gateway or host pins can
-  leave a partial, unsafe route state instead of refusing.
-- **Empty or bare default routes** — empty ranges or bare `0.0.0.0/0` / `::/0`
-  can become a full tunnel without an explicit full-tunnel acknowledgement.
-- **Empty allow-all exit policy** — `enable` with an empty policy can behave as
-  allow-all rather than refuse.
-- **Privileged Exit controls without real API auth** — map / swap / unmap must
-  require admin credentials, not an unlocked local port.
-- **Unmap / empty ranges** — the last unmap must tear routes down; otherwise
-  traffic can keep using a path the operator thinks is gone.
-
-**Windows-specific:**
-
-- **IPv6 disable scope** — any IPv6 soft-fail or disable for the tunnel must hit
-  the Session Router TUN adapter only, never a global “all adapters” change.
-- **Gateway / next-hop installation** — Win32 next-hop selection and `route`
-  errors must not install a bad default via the tunnel.
-
-Severity in short: several of these are the difference between “Exit is an
-advanced experiment” and “a civilian can lose traffic integrity or scope by
-flipping a default.” Upstream defaults and docs did not treat that gap as a
-ship-blocker. This fork does.
-
-### What this fork fixed
-
-In **defaults, code, and docs** for this Windows client:
-
-- Packaged Exit and auto-routing stay **off**; the danger is called out in the
-  README and client guide, not buried in a comment.
-- Local control API defaults **off**; if enabled, bind is loopback/IPC only and
-  privileged commands (including Exit map/unmap class) need a real `auth=`
-  secret.
-- Clearnet DNS and inbound `reachable` stay off so a default install does not
-  quietly widen exposure while Exit is discussed.
-- Windows stay-up work scopes IPv6 soft-fail to the TUN adapter and hardens
-  MinGW runtime linkage so the client is less likely to drop for unrelated
-  reasons while operators chase Exit myths.
-- Docs state plainly that Exit is unfinished — this repository does not pretend
-  a config flip equals a finished anonymity product.
-
-### What remains (why Exit stays off)
-
-The protocol-class Exit issues above are **not** claimed fixed here. Fixing
-broker trust, EXIT_CAPABLE gating, fail-closed route bring-up, empty-policy
-refusal, and unmap teardown is Exit product work — larger than a Windows
-packaging fork. Until that lands and is reviewed, **Exit remains disabled** in
-the default build. Enabling it yourself is accepting known, documented risk.
+**Defaults around Exit (not an Exit-on product claim):** packaged client keeps
+`[exit] enable=false` and `auto-routing=false`. Clearnet DNS (`upstream=`) and
+`reachable` stay **off** by default so a normal install does not widen exposure
+beside the Exit switch. Enabling Exit yourself accepts the “Still open if Exit
+enabled” rows above.
 
 Full write-up: [docs/windows-client.md](docs/windows-client.md).
 

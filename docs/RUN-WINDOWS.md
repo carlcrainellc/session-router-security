@@ -65,7 +65,39 @@ image) so C++ ABI matches.
 3. Keep `session-router.ini` and `bootstrap.signed` beside the exe (or set paths
    in the ini).
 4. Run `session-router.exe` as Administrator if the TUN driver requires it.
-5. Leave Exit **off** unless you understand the risks in the README.
+5. **Set tunnel DNS** (required for `.sesh`): see [Tunnel DNS](#tunnel-dns-required-for-sesh) below.
+6. Leave Exit **off** unless you understand the risks in the README.
+
+
+## Tunnel DNS (required for `.sesh`)
+
+After `session-router.exe` starts and the `sr-tun0` adapter appears, you **must**
+point that adapter’s DNS at the local Session Router resolver. This step is
+**required for `.sesh` / `.snode` names to resolve**. Without it, Windows will
+not send Session Router name queries to the client.
+
+```
+netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no
+```
+
+Optional helper (waits for `sr-tun0`, sets DNS, prints current DNS):
+
+```
+powershell -ExecutionPolicy Bypass -File tunnel-dns-preflight.ps1
+```
+
+(`tunnel-dns-preflight.ps1` ships beside `RUN-WINDOWS.md` in the packaging folder
+and in the Windows client release zip.)
+
+Verify:
+
+```
+netsh interface ip show dns name="sr-tun0"
+```
+
+Expected: statically configured DNS server `127.0.0.1`.
+
+More client context: [windows-client.md](windows-client.md).
 
 ## Bootstrap modes
 
