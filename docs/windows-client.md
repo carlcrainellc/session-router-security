@@ -46,10 +46,12 @@ test if you understand the risk.
 
 ## Network bind
 
-The packaged client does **not** open fixed port 1191 on every network card.
+The client UDP/QUIC socket binds **all interfaces** (`0.0.0.0`) with an **ephemeral port**
+(port `0`). That is the normal default. Do **not** bind the QUIC socket to `127.0.0.1`
+(that would break the client).
 
-By default it uses a temporary port. Do not set `listen=:1191` unless you know you need
-it and you set `allow-all-interfaces=true` on purpose.
+A **fixed** port on every address (for example `listen=:1191`) is opt-in only:
+set `allow-all-interfaces=true`. Otherwise omit `listen` and keep the ephemeral port.
 
 ## Clearnet DNS
 
@@ -71,7 +73,7 @@ Other people are not invited to connect in to you unless you turn `reachable` on
 |---------|---------|
 | Bootstrap | normal (`fetch=true`); local available |
 | Local API | off |
-| Bind | no fixed `:1191` on all NICs |
+| Bind | `0.0.0.0` + ephemeral port `0`; fixed port needs `allow-all-interfaces=true` |
 | Clearnet DNS | off (NXDOMAIN for non-.sesh/.snode) |
 | Reachable | false |
 | Exit | off |

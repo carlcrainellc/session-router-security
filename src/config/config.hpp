@@ -44,7 +44,7 @@ namespace srouter
 
     inline constexpr uint16_t DEFAULT_CLIENT_PORT{1191};
     inline constexpr uint16_t DEFAULT_RELAY_PORT{1190};
-    // Client default: any local address, ephemeral port (not fixed :1191 on all NICs).
+    // Client default: bind 0.0.0.0 with ephemeral port 0 (all-interfaces UDP; not a fixed :1191).
     inline const quic::Address DEFAULT_CLIENT_ADDR{"0.0.0.0", uint16_t{0}};
     inline constexpr uint16_t DEFAULT_DNS_PORT{53};
     inline constexpr int CLIENT_ROUTER_CONNECTIONS{4};
@@ -241,7 +241,8 @@ namespace srouter
     struct LinksConfig : ConfigBase
     {
         std::optional<quic::Address> listen_addr;
-        // When false (default), FullClient refuses listen=:PORT (all-interfaces fixed port).
+        // When false (default), FullClient refuses a fixed-port all-interfaces listen=:PORT
+        // (ephemeral 0.0.0.0:0 remains the default; set true to opt in to fixed :PORT).
         bool allow_all_interfaces = false;
 
         void define_config_options(ConfigDefinition& conf) override;

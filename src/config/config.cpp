@@ -1070,9 +1070,9 @@ namespace srouter
               : Comment{
                 "IP and/or port for Session Router to use for connections to relays.",
                 "",
-                "Default for clients is an ephemeral port (not a fixed :1191 on all interfaces).",
-                "Packaged clients must not set listen=:1191. Use a specific IP if you need a",
-                "fixed port, or set allow-all-interfaces=true to explicitly opt in.",
+                "Default for clients: bind 0.0.0.0 with ephemeral port 0 (all-interfaces UDP socket).",
+                "Do not bind QUIC to 127.0.0.1. A fixed port on every address (listen=:PORT)",
+                "requires allow-all-interfaces=true; otherwise omit listen for ephemeral.",
                 "",
                 "Examples:",
                 "    listen=15.5.29.5:1099 -- uses a specific IP and port",
@@ -1094,9 +1094,8 @@ namespace srouter
             Default{false},
             assignment_acceptor(allow_all_interfaces),
             Comment{
-                "When false (default), refuse a client listen address that binds a fixed port on",
-                "all interfaces (for example listen=:1191). Set true only if you intentionally",
-                "want that behavior.",
+                "When false (default), refuse listen=:PORT (fixed port on 0.0.0.0). Ephemeral 0.0.0.0:0",
+                "is still the default. Set true only to opt in to a fixed port on all addresses.",
             });
     }
 
@@ -1673,11 +1672,11 @@ namespace srouter
             if (not links.listen_addr)
                 return;
             const auto& a = *links.listen_addr;
-            // Refuse fixed-port all-interfaces bind unless explicitly allowed.
+            // Refuse fixed-port on 0.0.0.0 unless allow-all-interfaces; ephemeral 0.0.0.0:0 stays OK.
             if (a.is_any_addr() and not a.is_any_port() and not links.allow_all_interfaces)
                 throw std::invalid_argument{
-                    "[bind] listen=:{} on all interfaces is not allowed for clients; omit listen "
-                    "(ephemeral port) or set a specific IP, or set allow-all-interfaces=true"_format(a.port())};
+                    "[bind] listen=:{} (fixed port on 0.0.0.0) is not allowed for clients; omit listen "
+                    "(ephemeral 0.0.0.0:0) or set a specific IP, or set allow-all-interfaces=true"_format(a.port())};
         }
     }  // namespace
 
