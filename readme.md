@@ -11,6 +11,13 @@ download, build, or run that client with safer defaults and clearer docs —
 without needing the upstream project’s internal context. This is a fork; opening pull requests against Session Foundation is
 **not** the goal of this repository.
 
+Many of the serious issues documented here (especially Exit routing and related
+client-routing behavior) are **not limited to Windows**. They are protocol /
+client defaults that apply on other platforms too. Continuing to run the
+official Session Foundation build does not remove those risks; this fork changes
+defaults and documentation so they are harder to miss.
+
+
 - **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
 - **How to run (runtimes):** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
 
