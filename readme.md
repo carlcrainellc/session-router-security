@@ -4,71 +4,88 @@ Windows client hardening on top of Session Foundation `session-router` `dev`.
 
 - Upstream: [session-foundation/session-router](https://github.com/session-foundation/session-router) branch `dev`
 - Imported tip SHA: `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`
-- Client notes: [docs/windows-client.md](docs/windows-client.md)
-- How to run on Windows (runtime deps): [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
+- **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
+- **How to run (runtimes):** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
 
 Do **not** open PRs from this repository into Session Foundation until an explicit
 public flip is named.
+
+## What this tip locks (packaged defaults)
+
+| Lock | Default |
+|------|---------|
+| Bootstrap | `normal` (live fetch allowed); `local` and `chain3` available as advanced modes |
+| Local control API | **off** (loopback/IPC + `auth=` required if enabled) |
+| QUIC bind | all interfaces + ephemeral port `0` (honest wording; not “localhost-only”) |
+| Clearnet DNS | **off** (NXDOMAIN for non-`.sesh` / `.snode`) |
+| Reachable | **false** |
+| Exit | **off** (`enable=false`) |
+| Auto exit routing | **off** (`auto-routing=false`) |
+| Windows stay-up | drain timer, TUN-scoped IPv6 soft-fail, libzstd linked |
+| Published artifact | **exe + config/docs only** — no `.dll` files |
+
+`mode=chain3` is an **operator** path (diverse `rpc=` seeds, 2-of-3 reconcile). It is
+**not** the double-click default. See the default-vs-developer table in
+[docs/windows-client.md](docs/windows-client.md).
 
 ## Warning: Exit routing
 
 **Exit routing is not ready for general use.**
 
-The packaged client keeps Exit **off** (`[exit] enable=false`) and automatic exit
-routing **off** (`auto-routing=false`). Do not turn Exit on for everyday internet
-browsing. Only use Exit in a controlled test if you understand the risk.
+The packaged client keeps Exit **off**. Do not turn Exit on for everyday internet
+browsing. Deeper Exit work lives elsewhere; this tip keeps Exit disabled.
 
 ### Exit security flaws
 
-These are reasons Exit stays off by default. Many are **protocol / client-routing
-class** issues (any platform that enables Exit inherits them). A smaller set is
-**Windows-specific**.
+**Protocol / client-routing class (not Windows-only):** exit broker trust /
+injection; EXIT_CAPABLE gate; route bring-up fail-closed; empty or bare
+`0.0.0.0/0` without explicit full-tunnel acknowledgement; empty allow-all policy;
+API auth for privileged exit controls; unmap must tear routes down.
 
-**Protocol / client-routing class (not Windows-only):**
+**Windows-specific:** IPv6 disable must target the Session Router TUN adapter only
+(never global); Win32 gateway / next-hop installation must not install a bad
+default via the tunnel.
 
-- **Exit broker trust / injection** — traffic must only treat a remote as an exit
-  broker when that exit is explicitly mapped; otherwise a wrong peer can be
-  treated as your exit.
-- **EXIT_CAPABLE gate** — outbound clearnet via Exit must wait until the mapped
-  exit is actually exit-capable; sending earlier can leak or fail closed poorly.
-- **Route bring-up fail-closed** — bringing host routes up without a real gateway
-  or without required host pins must fail closed, not partially succeed.
-- **Empty or bare default routes** — empty IP ranges or a bare `0.0.0.0/0` (or
-  `::/0`) must not silently become “send everything” without an explicit
-  full-tunnel acknowledgement.
-- **Empty allow-all exit policy** — enabling Exit with an empty policy must not
-  mean “allow all”; it must refuse.
-- **API auth for privileged exit controls** — mapping / swapping / unmapping exits
-  and related route control must require real admin authentication, not an
-  unlocked control port.
-- **Unmap / empty ranges** — removing the last mapped range must tear routes down;
-  leaving a half-up default via the tunnel is unsafe.
+Full write-up: [docs/windows-client.md](docs/windows-client.md).
 
-**Windows-specific:**
+## Honest limits
 
-- **IPv6 binding scope** — disabling IPv6 must target the Session Router TUN
-  adapter only, never a global “all adapters” disable.
-- **Gateway / next-hop installation** — Win32 host-route next-hop selection and
-  `route` error handling must not install a bad default via the tunnel.
+- The first hop still sees an IP on the path to it (protocol fact).
+- TUN use on Windows typically needs elevation.
+- Upstream protocol limits still apply; this tip hardens defaults and packaging.
+- Exit stays **off** here rather than claiming Exit is finished.
+- Running a system-wide / commercial VPN under Session Router is **out of scope
+  for now** (future work; not a supported guide here).
 
-Until Exit is safe for general use, leave it off. The packaged ini does that for you.
+## Threat model (short)
 
-## Runtime dependencies (not bundled)
+**Improves:** safer defaults (API / DNS / reachable / Exit off), honest bind
+docs, optional `local` / `chain3` bootstrap for operators, Windows stay-up fixes,
+artifact supply chain that does not ship third-party DLLs.
 
-Build artifacts ship **`session-router.exe` + config/docs only**. They do **not**
-include `.dll` files. Obtain runtimes from official sources only:
+**Does not protect against:** a replaced `bootstrap.signed`, first-hop path
+visibility, OS/malware compromise, unofficial DLLs beside the exe, or “full
+clearnet anonymity via Exit” (Exit is off and has known flaws).
 
-- **Wintun** — https://www.wintun.net/ (amd64 `wintun.dll` from the official zip;
-  expected size 427552 bytes)
-- **MinGW-w64 POSIX runtimes** — `libgcc_s_seh-1.dll`, `libstdc++-6.dll`,
-  `libwinpthread-1.dll` from the official MinGW-w64 / distro mingw packages or
-  MSYS2 (see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md))
+One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-pager).
+
+## Supply chain & authenticity
+
+- Artifacts: `session-router.exe`, `session-router.ini`, `bootstrap.signed`, docs —
+  **no DLLs**.
+- Wintun: https://www.wintun.net/ — amd64 `wintun.dll`, expected size **427552** bytes.
+- MinGW runtimes: official mingw-w64 / MSYS2 POSIX sysroot only (see
+  [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)).
+- Match CI artifact name `session-router-windows-source-<SHA>` to the git commit;
+  keep a local hash of the exe with that SHA. Treat `bootstrap.signed` as a trust
+  root.
 
 ## Bootstrap modes
 
-`normal` (default), `local` (signed file only), and `chain3` (≥3 diverse RPC
-seeds, 2-of-3 reconcile, height-lag cap, no live publisher fetch). Details:
+`normal` (default), `local` (signed file only), `chain3` (≥3 diverse RPCs,
+2-of-3, height-lag cap, no live publisher fetch). Details and trust notes:
 [docs/windows-client.md](docs/windows-client.md).
+
 
 ---
 

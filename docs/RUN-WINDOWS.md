@@ -76,3 +76,14 @@ See [windows-client.md](windows-client.md). Defaults use **normal** mode. Option
 
 Exit stays **disabled** in the packaged ini (`enable=false`, `auto-routing=false`).
 Do not enable it for everyday use. See the README “Exit security flaws” section.
+
+
+## Authenticity checklist
+
+1. Confirm the git commit SHA you intended (artifact folder name includes it).
+2. Hash `session-router.exe` locally and keep that hash with the SHA.
+3. Confirm `wintun.dll` is **427552** bytes and amd64 from the official Wintun zip.
+4. Take MinGW DLLs only from the official toolchain that matches this build’s GCC
+   major (reference CI: Ubuntu `mingw-w64` POSIX / GCC 14).
+5. Confirm packaged `session-router.ini` still has `enable=false` and
+   `auto-routing=false` unless you knowingly changed them.
