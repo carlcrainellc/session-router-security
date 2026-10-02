@@ -1,9 +1,11 @@
-# Windows client
+# Windows client (security-oriented fork)
 
-This repository is a **Windows-oriented fork** of Session Foundation
+This repository is a **security-oriented fork** of Session Foundation
 `session-router`, imported from upstream branch `dev` as this repository’s
-`main`. It hardens client defaults, packaging, and docs for people who want a
-usable Windows build without upstream project internals.
+`main`. Its identity is **security defaults and Exit honesty**; Windows remains
+the primary build and run target in this guide. It hardens client defaults,
+packaging, and docs for people who want a usable Windows build without upstream
+project internals.
 
 This is a fork. Contribution or pull requests into Session Foundation are **not**
 the goal of this repository.

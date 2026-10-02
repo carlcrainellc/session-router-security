@@ -1,13 +1,14 @@
-# Session Router — Windows client (fork)
+# Session Router — security-oriented fork (Windows client)
 
-This repository is a **Windows-oriented fork** of Session Foundation’s
+This repository is a **security-oriented fork** of Session Foundation’s
 [session-router](https://github.com/session-foundation/session-router), imported
 from the upstream `dev` branch at SHA
 `afb98f959f4f7e0ef996aef02fa21a6caf26b1e9`.
 
-It exists so a stranger can download, build, or run a Windows client with safer
-defaults and clearer docs — without needing the upstream project’s internal
-context. This is a fork; opening pull requests against Session Foundation is
+Its identity is **security defaults and Exit honesty**. Windows is the primary
+build and run target in this guide. The repository exists so a stranger can
+download, build, or run that client with safer defaults and clearer docs —
+without needing the upstream project’s internal context. This is a fork; opening pull requests against Session Foundation is
 **not** the goal of this repository.
 
 - **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
