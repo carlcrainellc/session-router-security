@@ -32,7 +32,7 @@ Plain-language summary of packaged defaults. Details follow in later sections.
 | **Auto exit routing** | **off** (`auto-routing=false`) | No automatic “send my internet via Exit”. |
 | **Windows stay-up** | drain timer, IPv6 soft-fail scoped to TUN, libzstd linked | Reduces common MinGW/Windows drop and IPv6 foot-guns. |
 
-Also see [RUN-WINDOWS.md](RUN-WINDOWS.md): the release zip is a **static exe + official `wintun.dll` only** (no MinGW runtime DLLs required), plus the **required** tunnel DNS step for `.sesh` names (`netsh ... sr-tun0 ... 127.0.0.1`, or `tunnel-dns-preflight.ps1`).
+Also see [RUN-WINDOWS.md](RUN-WINDOWS.md): the release zip is a **static exe + official `wintun.dll`** (no MinGW runtime DLLs required). Double-click `Start-Session-Router.cmd` (approve UAC). It starts the client and sets `sr-tun0` DNS to `127.0.0.1` for `.sesh` names. You do not run `netsh` by hand.
 
 ## Default vs developer / advanced paths
 
@@ -226,8 +226,9 @@ When you care about provenance:
    `git rev-parse HEAD`). Prefer building or downloading an artifact that names
    that SHA.
 2. **CI artifact naming** — the `windows-source` workflow uploads
-   `session-router-windows-source-<SHA>/` containing the exe and docs for that
-   commit. Match the SHA in the artifact name to the commit you intend.
+   `session-router-windows-source-<SHA>/` containing the exe, official
+   `wintun.dll`, ini, bootstrap, and the double-click starter for that commit.
+   Match the SHA in the artifact name to the commit you intend.
 3. **Binary** — after download, record a hash locally (for example
    `Get-FileHash session-router.exe` on Windows) and keep it with the commit SHA.
 4. **Runtimes** — the release zip includes official Wintun only. Verify
@@ -244,8 +245,10 @@ The **v0.1.0 release zip** ships:
 - Official **Wintun** `wintun.dll` from https://www.wintun.net/ (amd64, expected
   **427552** bytes; hashes in DEPENDENCIES.txt)
 
-CI “source” artifacts that omit DLLs still need you to add official Wintun
-yourself. Full steps: [RUN-WINDOWS.md](RUN-WINDOWS.md).
+The `windows-source` CI artifact on main includes that official `wintun.dll`
+and `Start-Session-Router.cmd`. The build fails if the staged ini is missing
+`listen=127.0.0.1:53`, `enable=false`, or `enabled=false`. Full steps:
+[RUN-WINDOWS.md](RUN-WINDOWS.md).
 
 ## Defaults summary (quick table)
 

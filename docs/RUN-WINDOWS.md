@@ -2,19 +2,22 @@
 
 This document describes how to run the MinGW-built Windows client package.
 
-The **v0.1.0 release zip** ships a **statically linked** `session-router.exe`
-plus official **`wintun.dll`**. MinGW C++/runtime DLLs are **not** required for
-that package (they are linked into the exe). Do not fetch MinGW runtimes from
-an Ubuntu sysroot for the release zip.
+The release zip ships a **statically linked** `session-router.exe` plus official
+**`wintun.dll`**. MinGW C++/runtime DLLs are **not** required for that package
+(they are linked into the exe). Do not fetch MinGW runtimes from an Ubuntu
+sysroot for the release zip.
 
 ## What the release zip contains
 
 - `session-router.exe` — statically linked client binary
-- `wintun.dll` — official Wintun amd64 (see DEPENDENCIES.txt in the zip)
-- `session-router.ini` — packaged defaults (Exit off; see warnings in the README)
+- `wintun.dll` — official Wintun amd64 (427552 bytes)
+- `session-router.ini` — packaged client defaults (Exit off; DNS on 127.0.0.1:53; empty `upstream=`)
 - `bootstrap.signed` — signed bootstrap relay contacts
-- `RUN-WINDOWS.md` / `windows-client.md` / `tunnel-dns-preflight.ps1` — run docs
-- `DEPENDENCIES.txt` — URLs and hashes for third-party binaries included
+- `Start-Session-Router.cmd` — **double-click this** to start the client and set tunnel DNS
+- `Start-Session-Router.ps1` — starter body (launched by the `.cmd`; do not use this as a separate path)
+- `RUN-WINDOWS.md` / `windows-client.md` — run docs
+
+The default click is a **client**, not a hidden-service host. Exit stays off.
 
 ## Runtime dependency
 
@@ -36,46 +39,36 @@ Example verification (PowerShell):
 
 If you build from source yourself and produce a **dynamically** linked binary,
 you would need matching MinGW-w64 POSIX runtimes from the same toolchain that
-built the exe. That path is **not** what the v0.1.0 release zip ships.
+built the exe. That path is **not** what the release zip ships.
 
 ## Quick start
 
-1. Unpack the release zip into a folder (`session-router.exe` and `wintun.dll`
-   should be side by side).
-2. Keep `session-router.ini` and `bootstrap.signed` beside the exe (or set paths
-   in the ini).
-3. Run `session-router.exe` as Administrator if the TUN driver requires it.
-4. **Set tunnel DNS** (required for `.sesh`): see [Tunnel DNS](#tunnel-dns-required-for-sesh) below.
-5. Leave Exit **off** unless you understand the risks in the README.
+1. Unpack the release zip into a folder. Keep `session-router.exe`, `wintun.dll`,
+   `session-router.ini`, `bootstrap.signed`, and `Start-Session-Router.cmd` side
+   by side.
+2. **Double-click `Start-Session-Router.cmd`.**
+3. Approve the Administrator (UAC) prompt. Creating the `sr-tun0` adapter and
+   setting its DNS need admin. The starter does both. You do not run `netsh`
+   yourself.
+4. The starter runs `session-router.exe -c session-router.ini`, waits until
+   `sr-tun0` exists, and sets that adapter’s DNS to `127.0.0.1`.
+5. Leave the Session Router window open. You can close the starter window.
+6. Leave Exit **off**. An empty `upstream=` is normal and does not block start.
+   Do not set a clearnet DNS upstream.
 
-## Tunnel DNS (required for `.sesh`)
+## Tunnel DNS (done by the starter)
 
-After `session-router.exe` starts and the `sr-tun0` adapter appears, you **must**
-point that adapter’s DNS at the local Session Router resolver. This step is
-**required for `.sesh` / `.snode` names to resolve**. Without it, Windows will
-not send Session Router name queries to the client.
+`.sesh` / `.snode` names resolve only if `sr-tun0` uses the local Session Router
+resolver at `127.0.0.1`. The double-click starter sets that after the adapter
+appears. That is the primary path.
 
-```
-netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no
-```
+Optional check (PowerShell, after the starter finishes):
 
-Optional helper (waits for `sr-tun0`, sets DNS, prints current DNS):
-
-```
-powershell -ExecutionPolicy Bypass -File tunnel-dns-preflight.ps1
-```
-
-(`tunnel-dns-preflight.ps1` ships in the release zip beside `RUN-WINDOWS.md`.)
-
-Verify:
-
-```
-netsh interface ip show dns name="sr-tun0"
+```powershell
+Get-DnsClientServerAddress -InterfaceAlias sr-tun0 -AddressFamily IPv4
 ```
 
-Expected: statically configured DNS server `127.0.0.1`.
-
-More client context: [windows-client.md](windows-client.md).
+Expected: `127.0.0.1`.
 
 ## Bootstrap modes
 
@@ -93,6 +86,7 @@ the README Exit status table (code fixes do not turn Exit on).
 1. Confirm the git commit SHA you intended (release notes name the commit SHA).
 2. Hash `session-router.exe` locally and keep that hash with the SHA.
 3. Confirm `wintun.dll` is **427552** bytes and amd64 from the official Wintun zip
-   (or the copy shipped in the release zip — see DEPENDENCIES.txt).
-4. Confirm packaged `session-router.ini` still has `enable=false` and
-   `auto-routing=false` unless you knowingly changed them.
+   (or the copy shipped in the release zip).
+4. Confirm packaged `session-router.ini` still has `listen=127.0.0.1:53`,
+   empty `upstream=`, `enable=false`, and `[api] enabled=false` unless you
+   knowingly changed them.

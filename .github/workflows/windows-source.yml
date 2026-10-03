@@ -4,9 +4,9 @@ name: windows-source
 # Windows runtime fixes live in src/. MinGW dependency fixes are committed on
 # the pinned submodule repos used by this branch.
 #
-# Artifacts contain the exe + config/docs only. Runtime DLLs (Wintun, MinGW
-# libgcc/libstdc++/winpthread) are NOT bundled — obtain them from the official
-# sources documented in docs/RUN-WINDOWS.md.
+# Artifacts contain the static exe, official amd64 wintun.dll (427552 bytes),
+# the packaged client ini, bootstrap.signed, and the double-click starter.
+# MinGW libgcc/libstdc++/winpthread are NOT bundled (the exe is static).
 
 on:
   workflow_dispatch:
@@ -65,28 +65,49 @@ jobs:
           mkdir -p artifact
           cp -v build/win32/session-router.exe artifact/
 
-          # Client ini (Exit off) + bootstrap.signed + run docs
+          # Client ini (Exit off) + bootstrap + one-click starter + official wintun
           cp -v contrib/packaging/session-router.ini artifact/session-router.ini
           cp -v .github/packaging/bootstrap.signed artifact/bootstrap.signed
+          cp -v .github/packaging/Start-Session-Router.cmd artifact/Start-Session-Router.cmd
+          cp -v .github/packaging/Start-Session-Router.ps1 artifact/Start-Session-Router.ps1
           cp -v docs/RUN-WINDOWS.md artifact/RUN-WINDOWS.md
           cp -v docs/windows-client.md artifact/windows-client.md
+
+          # cmake/win32.cmake already downloads official wintun 0.14.1
+          # (zip SHA256 07c25618...) and checks that hash. Stage amd64 only.
+          WINTUN="$PWD/build/win32/wintun/bin/amd64/wintun.dll"
+          test -f "$WINTUN"
+          cp -v "$WINTUN" artifact/wintun.dll
 
           ls -la artifact/
           x86_64-w64-mingw32-objdump -f artifact/session-router.exe | head -5
 
-          # Hard tests — exe + config only (no DLLs in the published artifact)
           test -f artifact/session-router.exe
           test -f artifact/session-router.ini
           test -f artifact/bootstrap.signed
           test "$(wc -c < artifact/bootstrap.signed)" -eq 434
           test -f artifact/RUN-WINDOWS.md
-          # Refuse accidental DLL packaging
-          ! ls artifact/*.dll >/dev/null 2>&1
+          test -f artifact/Start-Session-Router.cmd
+          test -f artifact/Start-Session-Router.ps1
+          test -f artifact/wintun.dll
+          test "$(wc -c < artifact/wintun.dll)" -eq 427552
+          # Official amd64 wintun.dll from wintun 0.14.1 (machine 0x8664)
+          echo "e5da8447dc2c320edc0fc52fa01885c103de8c118481f683643cacc3220dafce  artifact/wintun.dll" | sha256sum -c -
+          python3 -c 'import struct; from pathlib import Path; b=Path("artifact/wintun.dll").read_bytes(); e=struct.unpack_from("<I", b, 0x3C)[0]; m=struct.unpack_from("<H", b, e+4)[0]; assert m==0x8664, hex(m); print("wintun.dll amd64 ok")'
+          # No other DLLs (no MinGW runtimes)
+          dlls=$(find artifact -maxdepth 1 -name '*.dll' -printf '%f\n' | sort)
+          test "$dlls" = "wintun.dll"
+
+          # Staged ini must keep the client defaults. Fail the build if missing.
+          grep -qE '^listen=127\.0\.0\.1:53$' artifact/session-router.ini
           grep -qE '^enable=false$' artifact/session-router.ini
           grep -qE '^enabled=false$' artifact/session-router.ini
+          grep -qE '^upstream=$' artifact/session-router.ini
           grep -qE '^auto-routing=false$' artifact/session-router.ini
-          grep -q 'ifaddr=10.192.0.1/16' artifact/session-router.ini || grep -q 'ifaddr=' artifact/session-router.ini
-          echo "stage artifact OK (exe + config/docs; no DLLs)"
+          grep -qE '^ifaddr=10\.192\.0\.1/16$' artifact/session-router.ini
+          grep -qE '^ifaddr=fd2e:7365:7368::1/64$' artifact/session-router.ini
+          grep -qE '^ifname=sr-tun0$' artifact/session-router.ini
+          echo "stage artifact OK (exe + official wintun.dll + ini + starter)"
 
       - name: upload artifact
         uses: actions/upload-artifact@v4

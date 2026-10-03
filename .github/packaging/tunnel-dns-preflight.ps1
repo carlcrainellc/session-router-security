@@ -1,6 +1,6 @@
-# Optional Windows tunnel DNS pre-flight.
-# Run after session-router.exe is started with Exit disabled.
-# The package zip does not run this automatically.
+# Not the primary path. Double-click Start-Session-Router.cmd instead.
+# That starter launches session-router.exe and sets sr-tun0 DNS to 127.0.0.1.
+# This file only remains for operators who already started the exe themselves.
 
 $ErrorActionPreference = 'Stop'
 $Adapter = 'sr-tun0'

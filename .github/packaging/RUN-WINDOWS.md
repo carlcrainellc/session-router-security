@@ -1,32 +1,18 @@
 # Windows package — run steps
 
-Release zip: statically linked `session-router.exe` + official `wintun.dll` only (no MinGW runtime DLLs required). Full guide: [docs/RUN-WINDOWS.md](../../docs/RUN-WINDOWS.md).
+Release zip: statically linked `session-router.exe`, official `wintun.dll`, `session-router.ini`, `bootstrap.signed`, and the double-click starter. Full guide: [docs/RUN-WINDOWS.md](../../docs/RUN-WINDOWS.md).
 
-1. Keep Exit disabled in the client config (`enable=false` under `[exit]`).
-2. Start `session-router.exe`. The tunnel adapter `sr-tun0` appears after a few seconds.
-3. **Required for `.sesh` names:** set tunnel DNS to the local Session Router
-   resolver. Without this step, Session Router names (`.sesh` / `.snode`) will
-   **not** resolve — Windows will not send those queries to the client. The zip
-   does **not** run this for you:
+1. Unpack the zip so the files sit in one folder.
+2. **Double-click `Start-Session-Router.cmd`.** Approve the Administrator (UAC) prompt. Creating `sr-tun0` and setting its DNS need admin. The starter does that. You do not run `netsh` by hand.
+3. The starter runs `session-router.exe -c session-router.ini`, waits until `sr-tun0` exists, and sets that adapter’s DNS to `127.0.0.1`.
+4. Empty `upstream=` is valid. The starter does not refuse to start because upstream is empty. Keep Exit disabled (`enable=false`).
 
-```
-netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no
-```
+Optional check after the starter finishes:
 
-Or run the optional pre-flight script from this folder (same steps: wait for
-`sr-tun0`, set DNS, show DNS):
-
-```
-powershell -ExecutionPolicy Bypass -File tunnel-dns-preflight.ps1
+```powershell
+Get-DnsClientServerAddress -InterfaceAlias sr-tun0 -AddressFamily IPv4
 ```
 
-4. Verify:
+Expected: `127.0.0.1`.
 
-```
-netsh interface ip show dns name="sr-tun0"
-```
-
-Expected: statically configured DNS server `127.0.0.1`.
-
-See also the full client guide: [windows-client.md](../../docs/windows-client.md)
-and [docs/RUN-WINDOWS.md](../../docs/RUN-WINDOWS.md).
+See also [windows-client.md](../../docs/windows-client.md) and [docs/RUN-WINDOWS.md](../../docs/RUN-WINDOWS.md).

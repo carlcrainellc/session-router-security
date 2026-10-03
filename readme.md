@@ -21,10 +21,9 @@ miss.
 - **Full client guide:** [docs/windows-client.md](docs/windows-client.md)
 - **How to run:** [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md)
 - **Exit integrity notes:** [docs/exit-integrity.md](docs/exit-integrity.md)
-- **Tunnel DNS (required for `.sesh`):** after start,
-  `netsh interface ip set dns name="sr-tun0" static 127.0.0.1 primary validate=no`
-  — see [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md#tunnel-dns-required-for-sesh)
-  and packaging `tunnel-dns-preflight.ps1`
+- **Tunnel DNS (required for `.sesh`):** double-click `Start-Session-Router.cmd`
+  in the release zip. It starts the client and sets `sr-tun0` DNS to `127.0.0.1`.
+  You do not run `netsh` by hand. See [docs/RUN-WINDOWS.md](docs/RUN-WINDOWS.md).
 
 Maintained by Carl Craine and OGMax.
 
@@ -32,8 +31,8 @@ Donate (Ethereum): `0x2d81bfecee48de4cf49fddcc9f279970335fe298`
 
 Donate (SESH token on Arbitrum / EVM): `0x8bc20aBA70685634269d1803E7aCC752d985aa44`
 
-**Latest Windows release:** [v0.1.1-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.1-windows-client)
-— tip `06001544c39b032c291242eb91f12f9f80b66c7b`, `session-router.exe` SHA256 `f91736365d8ee91b84a80aec9fa5d70db8fd6e6b0eeca14099250612b24dc86f`. Exit stays off in the packaged defaults.
+**Latest Windows release:** [v0.1.2-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.2-windows-client)
+— one-click starter (`Start-Session-Router.cmd`) plus official `wintun.dll`. Exit stays off. Commit SHA and zip SHA256 are on the release.
 
 ## Safer defaults in this security fork
 
@@ -160,12 +159,12 @@ One-pager: [docs/windows-client.md](docs/windows-client.md#threat-model-one-page
 
 ## Supply chain & authenticity
 
-- Latest release: [v0.1.1-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.1-windows-client)
-  (tip `06001544c39b032c291242eb91f12f9f80b66c7b`; exe SHA256
-  `f91736365d8ee91b84a80aec9fa5d70db8fd6e6b0eeca14099250612b24dc86f`).
+- Latest release: [v0.1.2-windows-client](https://github.com/carlcrainellc/session-router-security/releases/tag/v0.1.2-windows-client)
+  (commit SHA and zip SHA256 are on the release page).
 - Release zip: statically linked `session-router.exe` + official `wintun.dll`
-  (and ini / bootstrap / docs). **Only Wintun is required** beside the exe;
-  MinGW C++/runtime DLLs are not needed for that package.
+  + `session-router.ini` + `bootstrap.signed` + `Start-Session-Router.cmd`.
+  **Only Wintun is required** beside the exe; MinGW C++/runtime DLLs are not
+  needed for that package. Double-click the `.cmd` (UAC) to start and set DNS.
 - Wintun: https://www.wintun.net/ — amd64 `wintun.dll`, expected size **427552** bytes
   (also listed with hashes in the zip’s DEPENDENCIES.txt).
 - Match the release commit SHA / CI artifact name to the git commit; keep a local
